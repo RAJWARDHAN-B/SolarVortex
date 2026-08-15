@@ -268,7 +268,7 @@ Fig.~\ref{fig:yolo_detections} shows YOLOv8n-OBB predictions on EL module images
 
 \subsection{Stage 2: Binary Quality Triage}
 
-Tables~\ref{tab:stage2_results}--\ref{tab:stage2_perclass} present the 7-architecture Optuna benchmark on 1{,}409 test images (460 OK, 949 B-grade). ConvNeXt-Tiny achieves the highest accuracy (97.2\,\%) and MCC (93.7\,\%); DenseNet-121 achieves the highest AUC (98.9\,\%) and PR-AUC (99.3\,\%). MobileNet-V3-Large (3.0M parameters) exactly matches ResNet-101 (42.5M) on accuracy, offering $14\times$ fewer parameters at identical classification performance---the most efficient design point. Transformer-based Swin-S and ViT-B/16 rank last on all primary metrics, suggesting that Swin-S and ViT-B/16 underperformed the evaluated CNNs on this dataset under our training protocol. The observed accuracies are also higher than early SVM ($\approx$73\,\%) and CNN ($\approx$82\,\%) results reported on ELPV~\cite{deitsch2019}, although direct numerical comparison should be interpreted cautiously because our dataset composition and splitting protocol differ.
+Tables~\ref{tab:stage2_results}--\ref{tab:stage2_perclass} present the 7-architecture Optuna benchmark on 1{,}409 test images (949 OK, 460 B-grade). ConvNeXt-Tiny achieves the highest accuracy (97.2\,\%) and MCC (93.7\,\%); DenseNet-121 achieves the highest AUC (98.9\,\%) and PR-AUC (99.3\,\%). MobileNet-V3-Large (3.0M parameters) exactly matches ResNet-101 (42.5M) on accuracy, offering $14\times$ fewer parameters at identical classification performance---the most efficient design point. Transformer-based Swin-S and ViT-B/16 rank last on all primary metrics, suggesting that Swin-S and ViT-B/16 underperformed the evaluated CNNs on this dataset under our training protocol. The observed accuracies are also higher than early SVM ($\approx$73\,\%) and CNN ($\approx$82\,\%) results reported on ELPV~\cite{deitsch2019}, although direct numerical comparison should be interpreted cautiously because our dataset composition and splitting protocol differ.
 
 \begin{table}[t]
   \caption{Stage~2 binary triage: 7-architecture Optuna benchmark (test set; best trial per backbone)}
@@ -294,7 +294,7 @@ Tables~\ref{tab:stage2_results}--\ref{tab:stage2_perclass} present the 7-archite
 \end{table}
 
 \begin{table}[t]
-  \caption{Stage~2 per-class precision/recall (test set; OK\,=\,460, B-grade\,=\,949)}
+  \caption{Stage~2 per-class precision/recall (test set; OK\,=\,949, B-grade\,=\,460)}
   \label{tab:stage2_perclass}
   \begin{center}
   \renewcommand{\arraystretch}{1.05}\small
@@ -303,13 +303,13 @@ Tables~\ref{tab:stage2_results}--\ref{tab:stage2_perclass} present the 7-archite
     \toprule
     \textbf{Model} & \textbf{OK-P} & \textbf{OK-R} & \textbf{BG-P} & \textbf{BG-R} & \textbf{FP} & \textbf{FN}\\
     \midrule
-    \textbf{ConvNeXt-T} & .970 & .989 & .977 & .937 & 29 & 10\\
-    DenseNet-121        & .974 & .980 & .958 & .946 & 25 & 19\\
-    MobileNet-V3L       & .953 & .989 & .976 & .900 & 46 & 10\\
-    ResNet-101          & .953 & .988 & .974 & .900 & 46 & 11\\
-    EffNet-B4           & .958 & .972 & .940 & .913 & 40 & 27\\
-    Swin-S              & .936 & .992 & .980 & .861 & 64 &  8\\
-    ViT-B/16            & .936 & .987 & .971 & .861 & 64 & 12\\
+    \textbf{ConvNeXt-T} & .970 & .989 & .977 & .937 & 10 & 29\\
+    DenseNet-121        & .974 & .980 & .958 & .946 & 19 & 25\\
+    MobileNet-V3L       & .953 & .989 & .976 & .900 & 10 & 46\\
+    ResNet-101          & .953 & .988 & .974 & .900 & 11 & 46\\
+    EffNet-B4           & .958 & .972 & .940 & .913 & 27 & 40\\
+    Swin-S              & .936 & .992 & .980 & .861 &  8 & 64\\
+    ViT-B/16            & .936 & .987 & .971 & .861 & 12 & 64\\
     \bottomrule
     \multicolumn{7}{l}{\footnotesize FP\,=\,OK misclassified as BG; FN\,=\,BG misclassified as OK.}
   \end{tabular}
@@ -338,7 +338,7 @@ Fig.~\ref{fig:stage2_roc} shows ROC curves; Fig.~\ref{fig:stage2_paramsf1} shows
 
 \subsection{Stage 1: Task Saturation and Leakage Verification}
 
-All five YOLOv8-OBB variants achieve mAP@0.5\,=\,0.9950 with perfect recall (1.0000). This saturation is consistent with the visual regularity of PV cell grids: once the detector learns the periodic busbar-and-boundary signature from a sufficiently diverse set of module images, additional model capacity yields diminishing returns in detection quality. The mAP@0.5:0.95 metric, which penalises imprecise localisation, shows a more meaningful spread (0.9909 for nano, 0.9947 for medium), indicating that larger models produce marginally tighter OBBs at the cost of throughput. Module-level partitioning (1{,}769 train / 443 val) explicitly prevents cell-level leakage: cells from the same physical module are assigned exclusively to one split, so identical or near-duplicate crops cannot straddle the train/test boundary.
+All five YOLOv8-OBB variants achieve mAP@0.5\,=\,0.9950 with perfect recall (1.0000). This saturation is consistent with the visual regularity of PV cell grids: once the detector learns the periodic busbar-and-boundary signature from a sufficiently diverse set of module images, additional model capacity yields diminishing returns in detection quality. The mAP@0.5:0.95 metric, which penalises imprecise localisation, shows a more meaningful spread (0.9909 for nano, 0.9947 for medium), indicating that larger models produce marginally tighter OBBs at the cost of throughput. The module-level dataset partitioning (3{,}909 train / 322 val / 161 test) explicitly prevents cell-level leakage: cells from the same physical module are assigned exclusively to one split, so identical or near-duplicate crops cannot straddle the train/test boundary.
 
 The nano variant's 4.5~ms total per-image latency (1.4~ms preprocess, 1.2~ms inference, 2.0~ms postprocess on the RTX PRO 4500) makes real-time manufacturing-line integration feasible. A 72-cell module (a common industrial configuration) yields 72 crops in $<$5~ms from the OBB stage, all fed to Stage~2 in a single batched inference pass.
 
@@ -348,7 +348,7 @@ CNN-based models consistently outperform Transformers (Swin-S, ViT-B/16) across 
 
 \textbf{Optimal hyperparameters.} Across all backbones, Optuna consistently selected AdamW as the best optimiser with a cosine or step LR schedule. The best learning rates cluster in the range $[10^{-4}, 4×10^{-4}]$ for CNN-based models and $[2×10^{-5}, 3×10^{-5}]$ for Transformer-based models, consistent with the lower learning rates typically required for fine-tuning attention-heavy architectures. Dropout rates vary widely (0.02--0.50), but have lower Optuna importance scores than LR and weight decay (Fig.~\ref{fig:optuna_importance}).
 
-\textbf{False-negative analysis.} In quality-critical manufacturing contexts, B-grade miss rate (FN) is the primary risk metric, as shipping a defective cell to a module assembly line causes downstream yield loss. Swin-S yielded the fewest false negatives (8), but at the cost of 64 false positives. ConvNeXt-Tiny produced 10 false negatives and only 29 false positives, yielding the lowest total error count (39) among the evaluated models.
+\textbf{False-negative analysis.} In quality-critical manufacturing contexts, B-grade miss rate (FN) is the primary risk metric, as shipping a defective cell to a module assembly line causes downstream yield loss. DenseNet-121 yielded the fewest false negatives (25), but at the cost of 19 false positives. ConvNeXt-Tiny produced 29 false negatives and only 10 false positives, yielding the lowest total error count (39) among the evaluated models, while Swin-S minimized false positives (8) but suffered the highest false negative count (64).
 
 \textbf{End-to-end latency.} Stage~1 processes one full module image in $\approx$4.5~ms (222~FPS). Stage~2 CNN forward pass on a $300\times300$-px single crop is estimated at $<$5~ms on the same RTX PRO 4500 hardware for all CNN variants. Full pipeline throughput is therefore dominated by the OBB detector stage, which indicates potential for real-time integration, subject to end-to-end benchmarking.
 
@@ -360,13 +360,13 @@ CNN-based models consistently outperform Transformers (Swin-S, ViT-B/16) across 
 
 \textit{Single-seed results:} All experiments report single-run performance with a fixed random seed. Multi-seed ($\geq$3) variance estimation and paired significance testing between ConvNeXt-Tiny and DenseNet-121 are deferred to the journal follow-up.
 
-\textit{Annotation cost:} OBB labelling of 2{,}212 full-module EL images required significant manual effort. Semi-supervised or weakly supervised cell detection---using the OBB model to pseudo-label unlabelled modules---is a natural next step to scale annotation.
+\textit{Annotation cost:} OBB labelling of 4{,}392 EL images required significant manual effort. Semi-supervised or weakly supervised cell detection---using the OBB model to pseudo-label unlabelled modules---is a natural next step to scale annotation.
 
 %% ============================================================
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-We presented a complete two-stage automated PV module inspection pipeline addressing module-to-cell localization within an integrated inspection pipeline. A systematic evaluation of classical OpenCV approaches identified four fundamental failure modes (hyperparameter brittleness, format sensitivity, contrast variability, perspective intolerance) that rendered heuristic methods unreliable across our heterogeneous module dataset. YOLOv8-OBB substantially mitigates these failure modes: all five OBB scales achieve mAP@0.5\,=\,0.9950 at up to 222~FPS, and the nano variant indicates potential for real-time manufacturing throughput. A comparative evaluation of seven widely used backbone architectures for binary OK/B-grade triage identifies ConvNeXt-Tiny (Acc.\,97.2\,\%, AUC\,98.6\,\%, FN\,=\,10) as providing the strongest observed accuracy--MCC trade-off, and DenseNet-121 (AUC\,98.9\,\%, PR-AUC\,99.3\,\%) as achieving the highest single-run AUC. MobileNet-V3-Large achieves the same accuracy as ResNet-101 with $14\times$ fewer parameters, making it a promising candidate for future edge deployment.
+We presented a complete two-stage automated PV module inspection pipeline addressing module-to-cell localization within an integrated inspection pipeline. A systematic evaluation of classical OpenCV approaches identified four fundamental failure modes (hyperparameter brittleness, format sensitivity, contrast variability, perspective intolerance) that rendered heuristic methods unreliable across our heterogeneous module dataset. YOLOv8-OBB substantially mitigates these failure modes: all five OBB scales achieve mAP@0.5\,=\,0.9950 at up to 222~FPS, and the nano variant indicates potential for real-time manufacturing throughput. A comparative evaluation of seven widely used backbone architectures for binary OK/B-grade triage identifies ConvNeXt-Tiny (Acc.\,97.2\,\%, AUC\,98.6\,\%, FN\,=\,29) as providing the strongest observed accuracy--MCC trade-off, and DenseNet-121 (AUC\,98.9\,\%, PR-AUC\,99.3\,\%, FN\,=\,25) as achieving the highest single-run AUC and lowest false negative count. MobileNet-V3-Large achieves the same accuracy as ResNet-101 with $14\times$ fewer parameters, making it a promising candidate for future edge deployment.
 
 \textbf{Future work:} Future work will focus on end-to-end benchmarking of pipeline latency on edge hardware (NVIDIA Jetson Orin), rigorous multi-seed statistical validation of the model performance differences, and exploring domain adaptation strategies (adversarial alignment, test-time augmentation) to align the lab-EL model to field-acquired EL/IR imagery for reliable fleet inspection.
 
