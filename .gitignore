@@ -1,1 +1,14 @@
 **/epoch*.pt
+
+# Python environments
+.venv/
+**/.venv/
+__pycache__/
+*.py[cod]
+
+# Segmentation datasets and run artefacts (large / regenerable)
+Segmentation/data/BenchmarkELimages/
+Segmentation/results/**/*.npz
+Segmentation/results/**/*.png
+Segmentation/checkpoints/
+**/*.pth
