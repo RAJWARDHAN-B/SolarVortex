@@ -1,0 +1,31 @@
+# Core dependencies for the Segmentation stage.
+#
+# PyTorch is intentionally NOT pinned here because the correct wheel differs by
+# platform. Install it first, then install this file:
+#
+#   macOS (Apple Silicon, MPS)  : uv pip install torch torchvision
+#   Ubuntu + RTX PRO 4500 (CUDA): uv pip install torch torchvision --index-url \
+#                                   https://download.pytorch.org/whl/cu124
+#
+# See README.md -> "Environment setup".
+
+numpy>=1.26
+pillow>=10.0
+pandas>=2.0
+matplotlib>=3.8
+tqdm>=4.66
+requests>=2.31
+
+# Segmentation models, metrics and augmentation
+segmentation-models-pytorch>=0.3.4
+timm>=1.0.0
+torchmetrics>=1.4.0
+albumentations>=1.4.0
+opencv-python-headless>=4.9
+
+# Transformer baselines (SegFormer, Mask2Former)
+transformers>=4.40.0
+
+# Experiment tracking / hyperparameter search
+optuna>=3.6.0
+tensorboard>=2.16
