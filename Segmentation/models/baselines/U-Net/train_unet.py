@@ -1,18 +1,23 @@
-import os
+import sys
 from pathlib import Path
 
-import numpy as np
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
+from torch.utils.data import DataLoader
+
+from datasets.data_loader import BenchmarkELDataset
+from datasets.module_split import module_grouped_split
 
 
 # ------------------------------
 # User config
 # ------------------------------
-DATA_ROOT = Path("/workspace/BenchmarkELimages/dataset_20221008")
-OUT_DIR = Path("/workspace/Segmentation/results/U-Net")
+DATA_ROOT = PROJECT_ROOT / "data/BenchmarkELimages/dataset_20221008"
+OUT_DIR = PROJECT_ROOT / "results/U-Net"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 IMAGE_SIZE = (512, 512)
@@ -21,37 +26,12 @@ NUM_EPOCHS = 20
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 29
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+SPLIT_SCHEME = "module_grouped"  # or "official" for comparison with the published split
+SPLIT_SEED = 42
 
 # ------------------------------
 # Dataset
 # ------------------------------
-class ELCellSegDataset(Dataset):
-    def __init__(self, image_dir, mask_dir, transform=None):
-        self.image_dir = Path(image_dir)
-        self.mask_dir = Path(mask_dir)
-        self.transform = transform
-        self.samples = sorted(p.name for p in self.image_dir.iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg"})
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        name = self.samples[idx]
-        img_path = self.image_dir / name
-        mask_path = self.mask_dir / name
-
-        image = np.array(__import__("PIL").Image.open(img_path).convert("L"), dtype=np.float32) / 255.0
-        mask = np.array(__import__("PIL").Image.open(mask_path), dtype=np.int64)
-
-        image = torch.from_numpy(image).unsqueeze(0)
-        mask = torch.from_numpy(mask)
-
-        if self.transform is not None:
-            image = self.transform(image)
-
-        return image.to(torch.float32), mask.to(torch.long)
-
-
 class DoubleConv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
@@ -137,13 +117,18 @@ def train_one_epoch(model, loader, criterion, optimizer, device):
 
 
 def main():
-    train_img = DATA_ROOT / "el_images_train"
-    train_mask = DATA_ROOT / "el_masks_train"
-    val_img = DATA_ROOT / "el_images_val"
-    val_mask = DATA_ROOT / "el_masks_val"
-
-    train_ds = ELCellSegDataset(train_img, train_mask)
-    val_ds = ELCellSegDataset(val_img, val_mask)
+    train_img, train_mask = DATA_ROOT / "el_images_train", DATA_ROOT / "el_masks_train"
+    val_img, val_mask = DATA_ROOT / "el_images_val", DATA_ROOT / "el_masks_val"
+    if SPLIT_SCHEME == "module_grouped":
+        split_samples = module_grouped_split(DATA_ROOT, seed=SPLIT_SEED)
+        train_ds = BenchmarkELDataset(train_img, train_mask, samples=split_samples["train"])
+        val_ds = BenchmarkELDataset(val_img, val_mask, samples=split_samples["val"])
+        print(f"module_grouped split seed={SPLIT_SEED}; test samples={len(split_samples['test'])}")
+    elif SPLIT_SCHEME == "official":
+        train_ds = BenchmarkELDataset(train_img, train_mask)
+        val_ds = BenchmarkELDataset(val_img, val_mask)
+    else:
+        raise ValueError(f"Unsupported split scheme: {SPLIT_SCHEME}")
 
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)

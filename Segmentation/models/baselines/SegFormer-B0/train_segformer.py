@@ -1,14 +1,21 @@
+import sys
 from pathlib import Path
 
-import numpy as np
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import torch
+import torch.nn.functional as F
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from transformers import SegformerForSemanticSegmentation
 
+from datasets.data_loader import BenchmarkELDataset
+from datasets.module_split import module_grouped_split
 
-DATA_ROOT = Path("/workspace/BenchmarkELimages/dataset_20221008")
-OUT_DIR = Path("/workspace/Segmentation/results/SegFormer-B0")
+DATA_ROOT = PROJECT_ROOT / "data/BenchmarkELimages/dataset_20221008"
+OUT_DIR = PROJECT_ROOT / "results/SegFormer-B0"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 BATCH_SIZE = 4
@@ -16,33 +23,29 @@ NUM_EPOCHS = 20
 LEARNING_RATE = 5e-5
 NUM_CLASSES = 29
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+SPLIT_SCHEME = "module_grouped"  # or "official" for comparison with the published split
+SPLIT_SEED = 42
 
 
-class ELCellSegDataset(Dataset):
-    def __init__(self, image_dir, mask_dir):
-        self.image_dir = Path(image_dir)
-        self.mask_dir = Path(mask_dir)
-        self.samples = sorted(p.name for p in self.image_dir.iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg"})
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        name = self.samples[idx]
-        img = __import__("PIL").Image.open(self.image_dir / name).convert("L")
-        mask = __import__("PIL").Image.open(self.mask_dir / name)
-
-        img = np.array(img, dtype=np.float32) / 255.0
-        mask = np.array(mask, dtype=np.int64)
-
-        image = torch.from_numpy(img).unsqueeze(0).float()
-        target = torch.from_numpy(mask).long()
-        return image, target
+def segmentation_logits(model, images, output_size):
+    rgb_images = images.repeat(1, 3, 1, 1)
+    logits = model(pixel_values=rgb_images).logits
+    return F.interpolate(logits, size=output_size, mode="bilinear", align_corners=False)
 
 
 def main():
-    train_ds = ELCellSegDataset(DATA_ROOT / "el_images_train", DATA_ROOT / "el_masks_train")
-    val_ds = ELCellSegDataset(DATA_ROOT / "el_images_val", DATA_ROOT / "el_masks_val")
+    train_img, train_mask = DATA_ROOT / "el_images_train", DATA_ROOT / "el_masks_train"
+    val_img, val_mask = DATA_ROOT / "el_images_val", DATA_ROOT / "el_masks_val"
+    if SPLIT_SCHEME == "module_grouped":
+        split_samples = module_grouped_split(DATA_ROOT, seed=SPLIT_SEED)
+        train_ds = BenchmarkELDataset(train_img, train_mask, samples=split_samples["train"])
+        val_ds = BenchmarkELDataset(val_img, val_mask, samples=split_samples["val"])
+        print(f"module_grouped split seed={SPLIT_SEED}; test samples={len(split_samples['test'])}")
+    elif SPLIT_SCHEME == "official":
+        train_ds = BenchmarkELDataset(train_img, train_mask)
+        val_ds = BenchmarkELDataset(val_img, val_mask)
+    else:
+        raise ValueError(f"Unsupported split scheme: {SPLIT_SCHEME}")
 
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
@@ -65,7 +68,7 @@ def main():
             images = images.to(DEVICE)
             masks = masks.to(DEVICE)
             optimizer.zero_grad()
-            outputs = model(pixel_values=images).logits
+            outputs = segmentation_logits(model, images, masks.shape[-2:])
             loss = criterion(outputs, masks)
             loss.backward()
             optimizer.step()
@@ -77,7 +80,7 @@ def main():
             for images, masks in val_loader:
                 images = images.to(DEVICE)
                 masks = masks.to(DEVICE)
-                outputs = model(pixel_values=images).logits
+                outputs = segmentation_logits(model, images, masks.shape[-2:])
                 loss = criterion(outputs, masks)
                 val_loss += loss.item() * images.size(0)
 

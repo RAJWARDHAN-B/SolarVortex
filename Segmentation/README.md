@@ -105,14 +105,16 @@ Different cells cut from the *same physical module* appear in different splits. 
 cells share a manufacturer, an EL capture session, illumination, and often a defect
 mechanism, so the official split modestly overestimates generalisation.
 
-We therefore support two split schemes:
+The baseline trainers support two split schemes:
 
-- **`official`** (default) — the shipped split. Use for comparability with Pratt et al.
-- **`module_grouped`** — a regenerated, leakage-free split grouped by module ID. Use for
-  our own headline claims.
+- **`official`** — the shipped split. Use for comparability with Pratt et al.
+- **`module_grouped`** — a deterministic 80/10/10 split grouped by module ID. Use for
+  leakage-free headline claims. Augmented copies stay in training; validation and test
+  use original images only. The seed defaults to `42`.
 
-Report both. The delta between them is itself a publishable observation, and it mirrors
-the module-level grouping discipline already used in Stage 1 and Stage 2.
+Set `SPLIT_SCHEME` in each baseline trainer to choose the split. The shipped split remains
+available for comparison, but the scripts default to `module_grouped`. Report which split
+was used; results from different split schemes are not directly comparable.
 
 ---
 
@@ -215,8 +217,10 @@ uv pip install --python .venv/bin/python torch torchvision \
 uv pip install --python .venv/bin/python -r requirements.txt
 ```
 
-Device selection is automatic: `cuda` → `mps` → `cpu`. The Mac is for smoke tests and
-shape checks only; all reported runs happen on the Ubuntu box.
+Baseline scripts select `cuda` when available and otherwise use `cpu`, which covers the
+Ubuntu training device. Their dataset and output paths are resolved relative to this
+Segmentation directory. SegFormer repeats grayscale input across three channels to retain
+its pretrained RGB encoder and upsamples logits to the mask size before computing loss.
 
 ### Verify the dataset
 
@@ -253,9 +257,13 @@ Segmentation/
 
 ### Baselines (`models/baselines/`)
 
-U-Net, U-Net++, DeepLabV3+, PSPNet, HRNet via `segmentation-models-pytorch`;
-SegFormer and Mask2Former via `transformers`. All share one encoder family where
-possible so comparisons are not confounded by backbone capacity.
+The runnable baseline trainers are U-Net, U-Net++, DeepLabV3+, and SegFormer-B0. U-Net++
+and DeepLabV3+ use their distinct `segmentation-models-pytorch` architectures with a
+ResNet-34 encoder; SegFormer-B0 uses the Transformers implementation. The U-Net trainer
+uses its own encoder/decoder implementation. All trainers default to the same
+module-grouped split and can be switched to `official` in their configuration.
+
+PSPNet, HRNet, and Mask2Former are planned, not currently implemented as trainers.
 
 ### Custom (`models/custom/`)
 

@@ -1,15 +1,21 @@
-import numpy as np
+import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import segmentation_models_pytorch as smp
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
-from torchvision.models.segmentation import deeplabv3_resnet50
+from torch.utils.data import DataLoader
+
+from datasets.data_loader import BenchmarkELDataset
+from datasets.module_split import module_grouped_split
 
 
-DATA_ROOT = Path("/workspace/BenchmarkELimages/dataset_20221008")
-OUT_DIR = Path("/workspace/Segmentation/results/DeepLabV3+")
+DATA_ROOT = PROJECT_ROOT / "data/BenchmarkELimages/dataset_20221008"
+OUT_DIR = PROJECT_ROOT / "results/DeepLabV3+"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 BATCH_SIZE = 8
@@ -17,39 +23,33 @@ NUM_EPOCHS = 20
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 29
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-class ELCellSegDataset(Dataset):
-    def __init__(self, image_dir, mask_dir):
-        self.image_dir = Path(image_dir)
-        self.mask_dir = Path(mask_dir)
-        self.samples = sorted(p.name for p in self.image_dir.iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg"})
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        name = self.samples[idx]
-        img = __import__("PIL").Image.open(self.image_dir / name).convert("L")
-        mask = __import__("PIL").Image.open(self.mask_dir / name)
-
-        img = np.array(img, dtype=np.float32) / 255.0
-        mask = np.array(mask, dtype=np.int64)
-
-        image = torch.from_numpy(img).unsqueeze(0).float()
-        target = torch.from_numpy(mask).long()
-        return image, target
+SPLIT_SCHEME = "module_grouped"  # or "official" for comparison with the published split
+SPLIT_SEED = 42
 
 
 def main():
-    train_ds = ELCellSegDataset(DATA_ROOT / "el_images_train", DATA_ROOT / "el_masks_train")
-    val_ds = ELCellSegDataset(DATA_ROOT / "el_images_val", DATA_ROOT / "el_masks_val")
+    train_img, train_mask = DATA_ROOT / "el_images_train", DATA_ROOT / "el_masks_train"
+    val_img, val_mask = DATA_ROOT / "el_images_val", DATA_ROOT / "el_masks_val"
+    if SPLIT_SCHEME == "module_grouped":
+        split_samples = module_grouped_split(DATA_ROOT, seed=SPLIT_SEED)
+        train_ds = BenchmarkELDataset(train_img, train_mask, samples=split_samples["train"])
+        val_ds = BenchmarkELDataset(val_img, val_mask, samples=split_samples["val"])
+        print(f"module_grouped split seed={SPLIT_SEED}; test samples={len(split_samples['test'])}")
+    elif SPLIT_SCHEME == "official":
+        train_ds = BenchmarkELDataset(train_img, train_mask)
+        val_ds = BenchmarkELDataset(val_img, val_mask)
+    else:
+        raise ValueError(f"Unsupported split scheme: {SPLIT_SCHEME}")
 
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
 
-    model = deeplabv3_resnet50(weights=None, num_classes=NUM_CLASSES)
-    model.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    model = smp.DeepLabV3Plus(
+        encoder_name="resnet34",
+        encoder_weights=None,
+        in_channels=1,
+        classes=NUM_CLASSES,
+    )
     model = model.to(DEVICE)
 
     criterion = nn.CrossEntropyLoss(ignore_index=255)

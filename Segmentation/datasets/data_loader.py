@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -11,21 +12,29 @@ from torch.utils.data import Dataset
 class BenchmarkELDataset(Dataset):
     """Dataset for BenchmarkELimages cell-level segmentation masks."""
 
-    def __init__(self, image_dir: str | Path, mask_dir: str | Path, transform=None):
+    def __init__(
+        self,
+        image_dir: str | Path,
+        mask_dir: str | Path,
+        transform=None,
+        samples: Sequence[tuple[str | Path, str | Path]] | None = None,
+    ):
         self.image_dir = Path(image_dir)
         self.mask_dir = Path(mask_dir)
         self.transform = transform
-        self.samples = sorted(
-            p.name for p in self.image_dir.iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg"}
-        )
+        if samples is None:
+            names = sorted(
+                p.name for p in self.image_dir.iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg"}
+            )
+            self.samples = [(self.image_dir / name, self.mask_dir / name) for name in names]
+        else:
+            self.samples = [(Path(image), Path(mask)) for image, mask in samples]
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        name = self.samples[idx]
-        img_path = self.image_dir / name
-        mask_path = self.mask_dir / name
+        img_path, mask_path = self.samples[idx]
 
         image = Image.open(img_path).convert("L")
         mask = Image.open(mask_path)
