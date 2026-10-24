@@ -65,9 +65,9 @@ DEFECT_LABELS: tuple[int, ...] = tuple(c.label for c in EL_CLASSES if c.kind == 
 # ---------------------------------------------------------------------------
 # Six of the 29 classes have zero pixels in the official test split (clamp,
 # crack_rbn_edge, dead_cell, belt_mark, meas_artifact, sp_mono_halfcut), so a
-# 29-class macro-mIoU averages over undefined terms. EL-10 merges classes that
-# share a defect mechanism and appearance, keeping every group non-empty in all
-# three splits. meas_artifact is a camera artefact rather than a cell property
+# zero-union IoUs need an explicit undefined-value policy. EL-10 merges classes that
+# share a defect mechanism and appearance. Coverage depends on the split: grouped
+# seed 42 has no test corrosion pixels. meas_artifact is a camera artefact rather than a cell property
 # and is mapped to IGNORE_INDEX so it contributes to neither loss nor metrics.
 EL10_NAMES: tuple[str, ...] = (
     "background",       # 0

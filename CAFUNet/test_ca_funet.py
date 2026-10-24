@@ -10,15 +10,12 @@ def test_ablation_staircase():
     print("CA-FUNet Ablation Staircase Testing")
     print("==================================================")
     
-    # User mentioned: 28 classes, individual cells input (1 channel usually, or 3 if RGB)
-    # Using 1 channel and 28 classes for demonstration.
     in_channels = 1
-    classes = 28
+    classes = 29
     input_tensor = torch.randn(2, in_channels, 256, 256)
     
     configs = [
         {"name": "Baseline (Standard U-Net)", "dual_path": False, "dynamic_weights": False},
-        {"name": "+ Dynamic-Weighted Skips Only", "dual_path": False, "dynamic_weights": True},
         {"name": "+ Dual-Path Only (Fixed Weights)", "dual_path": True, "dynamic_weights": False},
         {"name": "CA-FUNet (Full)", "dual_path": True, "dynamic_weights": True},
     ]
@@ -31,6 +28,7 @@ def test_ablation_staircase():
             encoder_name='resnet34', 
             in_channels=in_channels, 
             classes=classes,
+            pretrained=False,
             use_dual_path=config["dual_path"],
             use_dynamic_weights=config["dynamic_weights"]
         )

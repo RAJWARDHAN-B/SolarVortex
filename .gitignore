@@ -11,4 +11,6 @@ Segmentation/data/BenchmarkELimages/
 Segmentation/results/**/*.npz
 Segmentation/results/**/*.png
 Segmentation/checkpoints/
+Segmentation/results/runs/
+Segmentation/results/legacy/
 **/*.pth

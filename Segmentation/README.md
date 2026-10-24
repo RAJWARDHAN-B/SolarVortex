@@ -3,6 +3,11 @@
 Pixel-level defect segmentation on electroluminescence (EL) images of silicon solar
 cells. This is the third stage of the SolarVortex pipeline:
 
+For the current runnable workflow, see [the server run guide](how_to_run.md).
+The shared runner now saves epoch graphs and JSON/CSV metrics, resumable checkpoints,
+explicit held-out evaluation, prediction masks, and qualitative panels. Old notebook
+outputs are historical; old artifacts can be archived with `python -m training.run cleanup`.
+
 ```
 Stage 1  module EL image  --YOLOv8-OBB-->  rectified cell crops
 Stage 2  cell crop        --ConvNeXt-T -->  OK / B-grade triage
@@ -112,9 +117,9 @@ The baseline trainers support two split schemes:
   leakage-free headline claims. Augmented copies stay in training; validation and test
   use original images only. The seed defaults to `42`.
 
-Set `SPLIT_SCHEME` in each baseline trainer to choose the split. The shipped split remains
-available for comparison, but the scripts default to `module_grouped`. Report which split
-was used; results from different split schemes are not directly comparable.
+Use `--split module_grouped` (default) or `--split official` with the shared runner.
+Keep `--split-seed 42` fixed across comparisons. Each run saves its actual filename
+manifest and class coverage. Results from different split schemes are not directly comparable.
 
 ---
 
@@ -135,8 +140,10 @@ All 29 labels. Faithful to the source, but hard to report honestly:
 
 ### EL-10 (reduced, recommended for headline numbers)
 
-Classes are merged by shared defect mechanism and appearance. Every group is non-empty
-in all three splits:
+Classes are merged by shared defect mechanism and appearance. The following percentages
+and non-empty-group observations describe the **official split only**. Grouped seed 42
+has no corrosion pixels in test, and training has no native `belt_mark` pixels. Read the
+saved per-run audit before interpreting macro scores; do not change splits to optimize test results.
 
 | id | group | merged from | train px % | test px % |
 |---:|---|---|---:|---:|
@@ -173,20 +180,26 @@ Rationale for each merge:
 - **`gridline`** and **`edge_dark`** stay standalone: both are common, visually distinct,
   and diagnostically meaningful.
 
-Use `EL10_LUT` (a 29-entry lookup table) to remap: `el10 = EL10_LUT[fine_mask]`.
+For NumPy masks without ignored pixels, remap with `np.asarray(EL10_LUT)[fine_mask]`.
+The runner instead trains EL-29 and derives EL-10 predictions by summing native softmax
+probabilities per merged group before argmax. This is not a separately trained EL-10 model.
 
 ### Reporting protocol
 
 Always report all three, because each answers a different question:
 
-1. **EL-29 per-class IoU** — full transparency, with absent classes explicitly marked `n/a`.
-2. **EL-10 mIoU** — the headline number.
+1. **EL-29 per-class IoU** — full transparency, with zero-union classes marked `null`/`n/a`.
+2. **Derived EL-10 mIoU** — with its missing-class coverage disclosed.
 3. **Defect-only mIoU** — mean over EL-10 groups 4–9, excluding `background`,
    `cell_substrate`, `interconnect`, `module_furniture`. This is what actually matters for
    inspection, and it is the metric a plain mIoU hides.
 
 Background plus module furniture is ~89 % of all pixels, so pixel accuracy is a
 meaningless metric here. Do not report it as a headline.
+
+Macro means exclude undefined zero-union IoUs; a class absent from ground truth but
+predicted incorrectly scores zero and remains included. The GT-present-only macro is
+also saved. Absent classes are not automatically perfect or automatically undefined.
 
 ---
 
@@ -207,13 +220,13 @@ uv pip install --python .venv/bin/python -r requirements.txt
 
 ### Ubuntu 24.04 + RTX PRO 4500 Blackwell (training)
 
-Blackwell needs CUDA 12.4 or newer:
+Use a Blackwell-capable PyTorch build (2.7+ with CUDA 12.8 wheels) and a compatible driver:
 
 ```bash
 cd Segmentation
 uv venv --python 3.11 .venv
-uv pip install --python .venv/bin/python torch torchvision \
-    --index-url https://download.pytorch.org/whl/cu124
+uv pip install --python .venv/bin/python 'torch>=2.7' torchvision \
+  --index-url https://download.pytorch.org/whl/cu128
 uv pip install --python .venv/bin/python -r requirements.txt
 ```
 
@@ -231,7 +244,7 @@ cd Segmentation
 
 Run this after any dataset change. It checks pairing, CSV/taxonomy agreement, mask value
 range, augmentation composition, split leakage, and per-class pixel statistics, and
-writes `results/class_stats.npz`.
+writes timestamped split manifests and detailed JSON audits under `results/runs/audits/`.
 
 ---
 
@@ -279,19 +292,28 @@ PSPNet, HRNet, and Mask2Former are planned, not currently implemented as trainer
 
 ## 6. Status of the existing CA-FUNet
 
-The prototype at [`../CAFUNet/ca_funet.py`](../CAFUNet/ca_funet.py) is **not yet moved
-into this folder**. The concept is sound and worth keeping, but the implementation has
-defects that must be fixed first:
+The prototype at [`../CAFUNet/ca_funet.py`](../CAFUNet/ca_funet.py) is integrated with
+the shared runner as `--model cafunet`. Output size and class count are corrected;
+pretraining is explicit; the template trainer now delegates to the shared validated
+data loader, training, checkpoints, and evaluator. Real-library CPU forward/backward
+checks cover all six supported models, with no pretrained downloads.
 
-| # | Issue |
-|---|---|
-| A | **Output is 2× too large.** The encoder yields 5 feature maps (stride 2→32) and the decoder has 5 blocks, each upsampling ×2, reaching stride 1 — then a further `F.interpolate(scale_factor=2)` runs before the head. A 256×256 input produces a 512×512 output, so the assertion in `test_ca_funet.py` cannot have passed. |
-| B | **Ablation rung 2 is a no-op.** `DualPathCAFusionSkip.forward` returns early when `use_dual_path=False`, so "dynamic weights only" is numerically identical to the baseline, with the gate allocated but never called. |
-| C | **Wrong class count.** `num_classes = 28`; `dataset_20221008` has 29. |
-| D | **Fine-detail branch is misplaced.** `use_fusion = (i < 2)` puts it at the two *deepest* decoder stages, where fine detail is already destroyed. Cracks and gridline breaks need it at stride 2–4. |
-| E | **The gate is not class-aware.** It is GAP → MLP → 2-way softmax, i.e. one image-level weight pair. Either rename it or make it genuinely per-class/per-pixel. |
+Valid ablations are `--variant plain`, `fixed`, and `dynamic`. The old dynamic-only
+configuration without dual paths is rejected rather than presented as an experiment.
+Architecture research remains: the fine/context branches still operate at the two
+deepest skip stages, and the gate is image-conditioned, not explicitly class-aware.
+These prototype fixes do not establish novelty or improve accuracy by themselves.
 
-`train_ca_funet.py` is a template, not a working trainer: plain `CrossEntropyLoss` on a
-65 %-background problem, no validation loop, metrics computed on training data, a
-checkpoint written every epoch, the `transform` argument accepted but never applied, and
-image/mask pairing by independent `sorted(os.listdir(...))` calls.
+## 7. Current Experiment Layout
+
+Use `python -m training.run` from this directory. The original four trainer paths are
+compatibility entry points. `training/run.py` owns training/evaluation; `training/models.py`
+owns construction and preprocessing; `training/data.py` owns saved splits/audits;
+`evaluation/metrics.py` and `evaluation/reporting.py` own numeric reports and figures.
+The importable original U-Net is in `models/baselines/unet.py`.
+
+Run artifacts are isolated under `results/runs/<model>/<run-name>/`, including the
+configuration, source snapshot, environment, split, content hashes, epoch JSON/CSV,
+PNG graphs, best/last checkpoints, and timestamped evaluation reports. Generated
+directories are Git-ignored and need separate server backups. Full commands, metric
+policies, resume instructions, and the artifact tree are in [how_to_run.md](how_to_run.md).

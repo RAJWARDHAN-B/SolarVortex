@@ -58,6 +58,8 @@ class ClassAwareFusionGate(nn.Module):
 class DualPathCAFusionSkip(nn.Module):
     def __init__(self, encoder_channels, decoder_channels, use_dual_path=True, use_dynamic_weights=True):
         super().__init__()
+        if use_dynamic_weights and not use_dual_path:
+            raise ValueError("Dynamic fusion requires dual paths; use plain, fixed, or dynamic variants")
         self.use_dual_path = use_dual_path
         self.use_dynamic_weights = use_dynamic_weights
         
@@ -115,7 +117,10 @@ class DecoderBlock(nn.Module):
 
     def forward(self, x, skip=None):
         # Upsample decoder features
-        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
+        if skip is not None:
+            x = F.interpolate(x, size=skip.shape[-2:], mode='bilinear', align_corners=False)
+        else:
+            x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
         
         if skip is not None:
             if self.use_fusion:
@@ -135,25 +140,24 @@ class CAFUNet(nn.Module):
     def __init__(self, 
                  encoder_name='resnet34', 
                  in_channels=1, 
-                 classes=5, 
+                 classes=29,
                  decoder_channels=(256, 128, 64, 32, 16),
                  use_dual_path=True,
-                 use_dynamic_weights=True):
+                 use_dynamic_weights=True,
+                 pretrained=True):
         super().__init__()
         
         # 1. Encoder (from timm)
         self.encoder = timm.create_model(
             encoder_name, 
-            pretrained=True, 
+            pretrained=pretrained,
             in_chans=in_channels, 
             features_only=True
         )
         
-        # Get encoder feature channels (dynamically checking)
-        with torch.no_grad():
-            dummy_input = torch.randn(1, in_channels, 256, 256)
-            enc_features = self.encoder(dummy_input)
-            encoder_channels = [f.shape[1] for f in enc_features] # e.g. [64, 64, 128, 256, 512] for resnet34
+        encoder_channels = self.encoder.feature_info.channels()
+        if len(decoder_channels) != len(encoder_channels):
+            raise ValueError("Decoder depth must match encoder feature depth")
             
         encoder_channels = encoder_channels[::-1] # Reverse to match decoder order [512, 256, 128, 64, 64]
         
@@ -184,6 +188,7 @@ class CAFUNet(nn.Module):
         self.segmentation_head = nn.Conv2d(decoder_channels[-1], classes, kernel_size=1)
 
     def forward(self, x):
+        input_size = x.shape[-2:]
         features = self.encoder(x)
         
         # features list for resnet34: [stride 2, stride 4, stride 8, stride 16, stride 32]
@@ -199,8 +204,7 @@ class CAFUNet(nn.Module):
             skip = skips[i] if i < len(skips) else None
             x = block(x, skip)
             
-        # Final upsampling if needed to reach input resolution (stride 2 of the first encoder block)
-        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
+        x = F.interpolate(x, size=input_size, mode='bilinear', align_corners=False)
         out = self.segmentation_head(x)
         
         return out
