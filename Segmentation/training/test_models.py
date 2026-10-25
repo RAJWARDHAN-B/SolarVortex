@@ -8,6 +8,7 @@ from unittest.mock import patch
 import torch
 
 from models.baselines.unet import UNet
+from models.custom.solar_unet import ClassSpatialFusion, ELEdgeFeatures, SOLAR_VARIANTS, SolarUNet
 from training.models import MODEL_NAMES, build_model
 
 
@@ -24,6 +25,63 @@ class StubEncoder(torch.nn.Module):
 
 
 class ModelContractTests(unittest.TestCase):
+    def test_el_edges_preserve_flat_fields_and_respond_to_thin_lines(self):
+        extractor = ELEdgeFeatures()
+        flat = torch.full((1, 1, 32, 32), 0.5)
+        edges = extractor(flat)
+        torch.testing.assert_close(edges[:, :1], flat)
+        torch.testing.assert_close(edges[:, 1:], torch.zeros(1, 2, 32, 32), atol=1e-6, rtol=0)
+        cracked = flat.clone()
+        cracked[:, :, :, 16] = 0
+        self.assertGreater(float(extractor(cracked)[:, 1:].abs().sum()), 0)
+
+    def test_fusion_has_independent_class_and_pixel_weights(self):
+        fusion = ClassSpatialFusion(8, 3)
+        semantic = torch.randn(2, 8, 9, 11)
+        detail = torch.randn_like(semantic)
+        weights = fusion.weights(semantic, detail)
+        self.assertEqual(tuple(weights.shape), (2, 3, 9, 11))
+        self.assertTrue(bool(((weights > 0) & (weights < 1)).all()))
+        self.assertGreater(float(weights.var(dim=1).mean()), 0)
+        self.assertGreater(float(weights.flatten(2).var(dim=2).mean()), 0)
+
+    @unittest.skipUnless(importlib.util.find_spec("timm"), "Install timm to test SolarUNet")
+    def test_solar_factory_reload_has_no_pretrained_download(self):
+        with patch("timm.create_model", return_value=StubEncoder()) as constructor:
+            model = build_model("solar-unet", initialization="pretrained", load_pretrained=False)
+        self.assertFalse(constructor.call_args.kwargs["pretrained"])
+        self.assertTrue(model.normalize_encoder)
+        self.assertEqual(model.variant, "dynamic")
+
+    def test_solar_only_variants_are_not_silent_noops(self):
+        with self.assertRaisesRegex(ValueError, "specific to solar-unet"):
+            build_model("cafunet", variant="context")
+
+    @unittest.skipUnless(importlib.util.find_spec("timm"), "Install timm to test SolarUNet")
+    def test_solar_variants_forward_backward_and_odd_shapes(self):
+        previous_threads = torch.get_num_threads()
+        torch.set_num_threads(2)
+        try:
+            for variant in SOLAR_VARIANTS:
+                with self.subTest(variant=variant):
+                    model = SolarUNet(variant=variant)
+                    logits = model(torch.rand(2, 1, 65, 97))
+                    self.assertEqual(tuple(logits.shape), (2, 29, 65, 97))
+                    loss = torch.nn.functional.cross_entropy(logits, torch.zeros(2, 65, 97, dtype=torch.long))
+                    self.assertTrue(bool(torch.isfinite(loss)))
+                    loss.backward()
+                    if model.use_detail:
+                        self.assertGreater(float(model.detail_stem.layers[0].weight.grad.abs().sum()), 0)
+                    if variant == "dynamic":
+                        self.assertGreater(float(model.fusion.gate[-1].weight.grad.abs().sum()), 0)
+                    if variant in ("context", "fixed", "dynamic"):
+                        self.assertGreater(float(model.context.row.weight.grad.abs().sum()), 0)
+                        self.assertGreater(float(model.context.column.weight.grad.abs().sum()), 0)
+                    del model, logits, loss
+                    gc.collect()
+        finally:
+            torch.set_num_threads(previous_threads)
+
     @unittest.skipUnless(
         all(importlib.util.find_spec(name) for name in ("segmentation_models_pytorch", "timm", "transformers")),
         "Install the model requirements to run real-library contracts",

@@ -41,11 +41,22 @@ def plot_history(run_dir, history):
         axes[0].plot(epochs, [entry[phase]["loss"] for entry in history], label=phase, color=color)
         for axis, key in zip(axes[1:], ("macro_iou", "macro_dice")):
             axis.plot(epochs, [entry[phase]["el29"][key] for entry in history], label=phase, color=color)
-    for axis, title in zip(axes, ("Cross-entropy loss", "EL-29 macro IoU", "EL-29 macro Dice")):
+    objective_name = history[-1]["train"].get("objective", "ce")
+    for axis, title in zip(axes, (f"Objective: {objective_name}", "EL-29 macro IoU", "EL-29 macro Dice")):
         axis.set(title=title, xlabel="Epoch")
         axis.grid(alpha=0.2)
         axis.legend()
     figure.savefig(plots / "training_curves.png", dpi=180)
+    plt.close(figure)
+    figure, axes = plt.subplots(1, 2, figsize=(10, 4), layout="constrained")
+    for phase, color in (("train", "#187864"), ("val", "#bb4638")):
+        axes[0].plot(epochs, [entry[phase].get("cross_entropy", entry[phase]["loss"]) for entry in history], label=phase, color=color)
+        axes[1].plot(epochs, [entry[phase].get("soft_dice", 0.0) for entry in history], label=phase, color=color)
+    for axis, title in zip(axes, ("Cross-entropy component", "Soft Dice loss component")):
+        axis.set(title=title, xlabel="Epoch")
+        axis.grid(alpha=0.2)
+        axis.legend()
+    figure.savefig(plots / "loss_components.png", dpi=180)
     plt.close(figure)
     for taxonomy in ("el29", "el10"):
         names = [row["name"] for row in history[-1]["val"][taxonomy]["per_class"]]

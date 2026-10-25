@@ -9,7 +9,7 @@ import torch.nn.functional as functional
 
 from datasets.el_classes import CLASS_NAMES, NUM_CLASSES
 
-MODEL_NAMES = ("unet", "unet-resnet34", "unetpp", "deeplabv3plus", "segformer-b0", "cafunet")
+MODEL_NAMES = ("unet", "unet-resnet34", "unetpp", "deeplabv3plus", "segformer-b0", "cafunet", "solar-unet")
 SEGFORMER_CHECKPOINT = "nvidia/segformer-b0-finetuned-ade-512-512"
 
 
@@ -49,6 +49,14 @@ class GrayscaleNormalizedModel(nn.Module):
 
 def build_model(name, initialization="scratch", variant="dynamic", load_pretrained=True):
     pretrained = initialization == "pretrained" and load_pretrained
+    if name == "solar-unet":
+        from models.custom.solar_unet import SolarUNet
+        return SolarUNet(
+            classes=NUM_CLASSES, variant=variant, pretrained=pretrained,
+            normalize_encoder=initialization == "pretrained",
+        )
+    if variant not in ("plain", "fixed", "dynamic"):
+        raise ValueError("detail/context variants are specific to solar-unet")
     if name == "unet":
         if initialization != "scratch":
             raise ValueError("The original U-Net has no pretrained encoder; use unet-resnet34 instead")

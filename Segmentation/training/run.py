@@ -14,13 +14,13 @@ import time
 
 import numpy as np
 import torch
-from torch import nn
 from torch.utils.data import DataLoader
 
 from datasets.el_classes import CLASS_NAMES, DEFECT_LABELS, EL_CLASSES, EL10_GROUPS, EL10_LUT, EL10_NAMES, NUM_CLASSES
 from evaluation.metrics import confusion_matrix, summarize_confusion
 from evaluation.reporting import plot_history, save_evaluation, save_prediction, write_csv, write_json
 from training.data import audit_datasets, load_datasets, prepare_manifest
+from training.losses import SegmentationObjective
 from training.models import MODEL_NAMES, build_model
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,15 +82,15 @@ def make_loader(dataset, batch_size, workers, device, shuffle=False, seed=42):
     )
 
 
-def run_epoch(model, loader, device, optimizer=None, output_dir=None, figures=12):
+def run_epoch(model, loader, device, optimizer=None, output_dir=None, figures=12, objective=None):
     training = optimizer is not None
     model.train(training)
     native = np.zeros((NUM_CLASSES, NUM_CLASSES), dtype=np.int64)
     coarse = np.zeros((len(EL10_NAMES), len(EL10_NAMES)), dtype=np.int64)
     lookup = torch.tensor(EL10_LUT, device=device, dtype=torch.long)
-    loss_sum, valid_pixels, sample_index = 0.0, 0, 0
+    loss_sum, cross_entropy_sum, dice_sum, valid_pixels, sample_index = 0.0, 0.0, 0.0, 0, 0
     start = time.perf_counter()
-    criterion = nn.CrossEntropyLoss(ignore_index=255, reduction="sum")
+    objective = objective if objective is not None else SegmentationObjective()
     per_image = []
     with torch.set_grad_enabled(training):
         for images, masks in loader:
@@ -104,13 +104,16 @@ def run_epoch(model, loader, device, optimizer=None, output_dir=None, figures=12
             count = int((masks != 255).sum().item())
             if count == 0:
                 raise ValueError("Batch contains only ignored pixels")
-            loss = criterion(logits, masks) / count
+            components = objective.components(logits, masks)
+            loss = components["total"]
             if not torch.isfinite(loss):
                 raise ValueError("Non-finite loss; training stopped")
             if training:
                 loss.backward()
                 optimizer.step()
             loss_sum += float(loss.detach()) * count
+            cross_entropy_sum += float(components["cross_entropy"].detach()) * count
+            dice_sum += float(components["soft_dice"].detach()) * count
             valid_pixels += count
             with torch.no_grad():
                 predictions = logits.detach().argmax(dim=1)
@@ -137,6 +140,9 @@ def run_epoch(model, loader, device, optimizer=None, output_dir=None, figures=12
         write_json(Path(output_dir) / "per_image.json", per_image)
     return {
         "loss": loss_sum / valid_pixels, "seconds": time.perf_counter() - start,
+        "objective": objective.name,
+        "cross_entropy": cross_entropy_sum / valid_pixels,
+        "soft_dice": dice_sum / valid_pixels,
         "el29": summarize_confusion(native, CLASS_NAMES, DEFECT_LABELS),
         "el10": summarize_confusion(coarse, EL10_NAMES, range(4, 10)),
         "el10_protocol": "Derived from summed EL-29 softmax probabilities per EL-10 group, then argmax. Ground-truth meas_artifact (23) is ignored only in EL-10. This is NOT a separately trained 10-class model.",
@@ -150,6 +156,8 @@ def save_history(run_dir, history):
         row = {"epoch": entry["epoch"], "learning_rate": entry["learning_rate"]}
         for phase in ("train", "val"):
             row[f"{phase}_loss"] = entry[phase]["loss"]
+            row[f"{phase}_cross_entropy"] = entry[phase].get("cross_entropy", entry[phase]["loss"])
+            row[f"{phase}_soft_dice"] = entry[phase].get("soft_dice", 0.0)
             row[f"{phase}_seconds"] = entry[phase]["seconds"]
             for taxonomy in ("el29", "el10"):
                 for metric in ("macro_iou", "macro_dice", "defect_macro_iou", "defect_macro_dice"):
@@ -173,7 +181,7 @@ def save_checkpoint(path, model, optimizer, epoch, best_loss, best_epoch, histor
 
 def snapshot_sources(run_dir):
     destination = run_dir / "source"
-    for folder in ("datasets", "training", "evaluation", "models/baselines"):
+    for folder in ("datasets", "training", "evaluation", "models/baselines", "models/custom"):
         for source in (ROOT / folder).rglob("*.py"):
             target = destination / source.relative_to(ROOT)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -212,6 +220,9 @@ def train(args):
         run_dir = Path(args.output_root).resolve() / args.model / run_name
         config = {
             "model": args.model, "initialization": args.initialization, "variant": args.variant,
+            "architecture_version": "solar-unet-v1" if args.model == "solar-unet" else args.model,
+            "loss": args.loss,
+            "loss_protocol": "ce: pixel-mean cross entropy. ce-dice: CE + equal-coefficient batch soft Dice loss over GT-present non-background classes; ignored pixels excluded; CE still penalizes absent-class false positives.",
             "seed": args.seed, "split": args.split, "split_seed": args.split_seed,
             "epochs": args.epochs or 50, "batch_size": args.batch_size or (4 if args.model == "segformer-b0" else 8),
             "learning_rate": args.learning_rate if args.learning_rate is not None else (5e-5 if args.model == "segformer-b0" else 1e-4),
@@ -243,6 +254,11 @@ def train(args):
         print(f"WARNING: {warning}", flush=True)
     print(f"Run directory: {run_dir}", flush=True)
     model = build_model(config["model"], config["initialization"], config["variant"], load_pretrained=resumed is None).to(device)
+    objective = SegmentationObjective(config.get("loss", "ce"))
+    write_json(run_dir / "model_stats.json", {
+        "parameters": sum(parameter.numel() for parameter in model.parameters()),
+        "trainable_parameters": sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad),
+    })
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["learning_rate"], weight_decay=config["weight_decay"])
     history, best_loss, best_epoch, start_epoch = [], math.inf, None, 1
     if resumed:
@@ -262,19 +278,19 @@ def train(args):
     try:
         for epoch in range(start_epoch, config["epochs"] + 1):
             training_loader = make_loader(datasets["train"], config["batch_size"], args.workers, device, True, config["seed"] + epoch)
-            train_report = run_epoch(model, training_loader, device, optimizer)
-            val_report = run_epoch(model, validation_loader, device)
+            train_report = run_epoch(model, training_loader, device, optimizer, objective=objective)
+            val_report = run_epoch(model, validation_loader, device, objective=objective)
             history.append({"epoch": epoch, "learning_rate": optimizer.param_groups[0]["lr"], "train": train_report, "val": val_report})
-            improved = val_report["loss"] < best_loss
+            improved = val_report["cross_entropy"] < best_loss
             if improved:
-                best_loss, best_epoch = val_report["loss"], epoch
+                best_loss, best_epoch = val_report["cross_entropy"], epoch
             save_checkpoint(run_dir / "checkpoints/last.pt", model, optimizer, epoch, best_loss, best_epoch, history, config)
             if improved:
                 shutil.copy2(run_dir / "checkpoints/last.pt", run_dir / "checkpoints/best.pt")
                 write_json(run_dir / "best_validation.json", history[-1])
             save_history(run_dir, history)
             write_json(run_dir / "status.json", {"state": "training", "completed_epoch": epoch, "best_epoch": best_epoch})
-            print(f"epoch={epoch}/{config['epochs']} train_loss={train_report['loss']:.5f} val_loss={val_report['loss']:.5f} val_mIoU={val_report['el29']['macro_iou']:.5f} best_epoch={best_epoch}", flush=True)
+            print(f"epoch={epoch}/{config['epochs']} train_loss={train_report['loss']:.5f} val_loss={val_report['loss']:.5f} val_ce={val_report['cross_entropy']:.5f} val_mIoU={val_report['el29']['macro_iou']:.5f} best_epoch={best_epoch}", flush=True)
     except BaseException as error:
         write_json(run_dir / "status.json", {"state": "interrupted", "error": str(error), "last_completed_epoch": history[-1]["epoch"] if history else None})
         raise
@@ -300,7 +316,7 @@ def evaluate(args):
     directory = run_dir / "evaluation" / f"{args.eval_split}-{timestamp()}"
     directory.mkdir(parents=True, exist_ok=False)
     loader = make_loader(datasets[args.eval_split], args.batch_size or config["batch_size"], args.workers, device)
-    report = run_epoch(model, loader, device, output_dir=directory, figures=args.figures)
+    report = run_epoch(model, loader, device, output_dir=directory, figures=args.figures, objective=SegmentationObjective(config.get("loss", "ce")))
     report.update({"split": args.eval_split, "checkpoint": "checkpoints/best.pt", "epoch": checkpoint["epoch"], "sample_list_sha256": manifest["sample_list_sha256"], "dataset_coverage": audit["splits"][args.eval_split]})
     save_evaluation(directory, report)
     write_json(directory / "environment.json", environment(device))
@@ -335,10 +351,10 @@ def smoke(args):
     datasets = load_datasets(root, manifest)
     model = build_model(args.model, args.initialization, args.variant).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate or 1e-4)
-    report = {"purpose": "One training batch and one validation batch only; NOT benchmark results", "model": args.model, "initialization": args.initialization, "variant": args.variant}
+    report = {"purpose": "One training batch and one validation batch only; NOT benchmark results", "model": args.model, "initialization": args.initialization, "variant": args.variant, "loss": args.loss, "parameters": sum(parameter.numel() for parameter in model.parameters())}
     for phase in ("train", "val"):
         loader = make_loader(datasets[phase], args.batch_size or 2, args.workers, device)
-        report[phase] = run_epoch(model, [next(iter(loader))], device, optimizer if phase == "train" else None)
+        report[phase] = run_epoch(model, [next(iter(loader))], device, optimizer if phase == "train" else None, objective=SegmentationObjective(args.loss))
     directory = Path(args.output_root) / "smoke" / args.model / timestamp()
     write_json(directory / "smoke.json", report)
     write_json(directory / "environment.json", environment(device))
@@ -356,10 +372,11 @@ def main(argv=None, default_model=None):
     parser.add_argument("--run-dir")
     parser.add_argument("--resume", help="Trusted local checkpoints/last.pt only")
     parser.add_argument("--init", dest="initialization", choices=("scratch", "pretrained"), default="scratch")
-    parser.add_argument("--variant", choices=("plain", "fixed", "dynamic"), default="dynamic")
+    parser.add_argument("--variant", choices=("plain", "detail", "context", "fixed", "dynamic"), default="dynamic")
     parser.add_argument("--epochs", type=int)
     parser.add_argument("--batch-size", type=int)
     parser.add_argument("--learning-rate", type=float)
+    parser.add_argument("--loss", choices=("ce", "ce-dice"), default="ce")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--split-seed", type=int, default=42)
     parser.add_argument("--split", choices=("module_grouped", "official"), default="module_grouped")
@@ -370,6 +387,8 @@ def main(argv=None, default_model=None):
     args = parser.parse_args(argv)
     if args.workers < 0 or args.figures < 0 or (args.batch_size is not None and args.batch_size <= 0) or (args.epochs is not None and args.epochs <= 0):
         parser.error("Workers/figures must be nonnegative; batch size and epochs must be positive")
+    if args.action in ("train", "smoke") and not args.resume and args.model != "solar-unet" and args.variant in ("detail", "context"):
+        parser.error("detail/context variants require --model solar-unet")
     if args.action == "cleanup":
         return cleanup_legacy(args.output_root)
     if args.action == "smoke":

@@ -266,7 +266,7 @@ Segmentation/
 
 ---
 
-## 5. Planned models
+## 5. Models and Research Candidates
 
 ### Baselines (`models/baselines/`)
 
@@ -280,8 +280,16 @@ PSPNet, HRNet, and Mask2Former are planned, not currently implemented as trainer
 
 ### Custom (`models/custom/`)
 
+**SolarUNet v1 is now runnable as `--model solar-unet`.** It combines a standard
+ResNet-34 encoder/decoder with full-resolution EL edge refinement, axial context,
+and per-class/per-pixel gated detail residuals. Five ablations isolate those additions.
+It is an experimental candidate, not a proven best model or an nnU-Net replacement.
+Architecture, limitations, and controlled experiment commands are documented in
+[models/custom/README.md](models/custom/README.md).
+
 | Model | Idea |
 |---|---|
+| **SolarUNet v1 (implemented)** | Native-resolution edge detail, row/column context and spatial class-specific residual fusion. Optional CE+Dice is a separate experiment, not a silent default change. |
 | **FFLUNet-2D** | Faithful 2D port of the BraTS FFLUNet. Answers "does the medical architecture transfer to EL?" and is the control for everything below. |
 | **CA-FUNet v2** | Rewrite of the existing CA-FUNet (see §6). FFLUNet fuses with a *static* learned scalar pair; CA-FUNet conditions the fusion weights on the input. That delta is the contribution. |
 | **Feature/Defect dual-head** | Two heads — one for the 13 intrinsic features, one for the 16 defects — with the structure head conditioning the defect head. Physically motivated: you must know where a busbar *should* be to judge whether a dark line is a crack. |
@@ -296,7 +304,7 @@ The prototype at [`../CAFUNet/ca_funet.py`](../CAFUNet/ca_funet.py) is integrate
 the shared runner as `--model cafunet`. Output size and class count are corrected;
 pretraining is explicit; the template trainer now delegates to the shared validated
 data loader, training, checkpoints, and evaluator. Real-library CPU forward/backward
-checks cover all six supported models, with no pretrained downloads.
+checks cover all supported models, with no pretrained downloads.
 
 Valid ablations are `--variant plain`, `fixed`, and `dynamic`. The old dynamic-only
 configuration without dual paths is rejected rather than presented as an experiment.
@@ -317,3 +325,8 @@ configuration, source snapshot, environment, split, content hashes, epoch JSON/C
 PNG graphs, best/last checkpoints, and timestamped evaluation reports. Generated
 directories are Git-ignored and need separate server backups. Full commands, metric
 policies, resume instructions, and the artifact tree are in [how_to_run.md](how_to_run.md).
+
+Default loss remains CE. Opt into `--loss ce-dice` for a separately recorded
+CE-plus-foreground-Dice experiment on any model. Checkpoint selection still uses
+validation CE; total/CE/Dice loss components and their numeric sources are saved.
+New runs snapshot custom model sources and record model parameter counts too.

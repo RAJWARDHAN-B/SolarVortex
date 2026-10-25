@@ -121,7 +121,7 @@ Use a new run name for a changed protocol. Existing named directories are never
 overwritten. Without `--run-name`, the runner generates a unique timestamped name.
 Keep batch sizes consistent where feasible; record any memory-driven differences.
 
-Checkpoints are selected using **minimum validation loss**. Training does NOT run test
+Checkpoints are selected using **minimum validation cross-entropy**. Training does NOT run test
 evaluation. Validation and training metrics are computed from accumulated pixel counts,
 not an average of batch IoUs. Training metrics describe online training-mode predictions;
 validation uses the fixed model in evaluation mode at the end of the epoch.
@@ -164,6 +164,7 @@ results/
         smoke/<model>/<timestamp>/          one-batch diagnostic results only
         <model>/<run-name>/
             config.json                      hyperparameters and preprocessing
+            model_stats.json                 total/trainable parameter counts
             environment.json                 Python, library versions, device
             splits.json                      exact relative image/mask paths and checksum
             dataset_audit.json               coverage, overlap, dataset content hashes
@@ -177,6 +178,7 @@ results/
                 last.pt                        resumable latest completed epoch
             plots/
                 training_curves.png             train/validation loss, IoU and Dice
+                loss_components.png             CE and optional soft Dice components
                 validation_el29_iou_history.png
                 validation_el10_iou_history.png
             evaluation/test-<timestamp>/
@@ -236,6 +238,43 @@ models use ImageNet weights, whereas pretrained SegFormer uses the ADE20K-finetu
 checkpoint; document this extra supervision rather than presenting it as an identical
 pretraining regime. Use new run names and do not mix scratch/pretrained tables.
 Once this protocol is stable, add FFLUNet-2D behind the same runner and evaluator.
+
+## SolarUNet: New Solar-Specific Candidate
+
+The runnable candidate is `--model solar-unet`. It preserves full-resolution EL edge
+detail, adds row/column context, and learns class/pixel-specific detail gates. It is
+not yet trained or proven better than the baselines, and is not a self-configuring
+nnU-Net implementation. Full architecture, five ablations, and the experiment matrix
+are in [models/custom/README.md](models/custom/README.md).
+
+After updating the server source and environment:
+
+```bash
+python -m training.run smoke --model solar-unet --variant dynamic --loss ce-dice --batch-size 1 --device cuda
+python -m training.run train --model solar-unet --variant plain --init scratch --loss ce --epochs 50 --batch-size 4 --seed 42 --run-name plain-ce-seed42
+python -m training.run train --model solar-unet --variant dynamic --init scratch --loss ce --epochs 50 --batch-size 4 --seed 42 --run-name dynamic-ce-seed42
+```
+
+These two CE runs compare the internal control and full architecture without changing
+the baseline objective. Test `--variant detail`, `context`, and `fixed` to isolate
+individual additions. Only `solar-unet` accepts `detail` and `context` variants.
+
+Optional `--loss ce-dice` is supported for every model. It adds CE and batch soft
+foreground Dice loss over GT-present classes; target 255 is masked in both. It is
+not dataset-level Dice and not an exact nnU-Net recipe. Compare loss-matched controls,
+save these runs under new names, and do not mix architecture and loss claims.
+Default commands still use CE; old checkpoints without a loss setting restore as CE.
+
+After validation-based model selection, evaluate the frozen run:
+
+```bash
+python -m training.run evaluate --run-dir results/runs/solar-unet/dynamic-ce-seed42 --eval-split test --figures 72
+```
+
+All existing plots, JSON/CSV metrics, prediction PNGs, source snapshots, and resume
+support apply. Loss-component graphs and their numeric values are saved as well.
+Missing corrosion/belt-mark coverage remains a data limitation; do not claim that a
+new architecture resolves it.
 
 ## 10. Run From Jupyter Instead
 

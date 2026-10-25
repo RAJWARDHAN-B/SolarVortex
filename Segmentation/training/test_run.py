@@ -11,6 +11,7 @@ import torch
 
 from datasets.el_classes import EL_CLASSES
 from training.data import load_datasets, prepare_manifest
+from training.losses import SegmentationObjective
 from training.run import coarse_predictions, main
 
 
@@ -19,6 +20,31 @@ def tiny_model(*args, **kwargs):
 
 
 class PipelineTests(unittest.TestCase):
+    def test_ce_dice_ignores_pixels_and_has_finite_gradients(self):
+        logits = torch.randn(1, 3, 1, 2, requires_grad=True)
+        target = torch.tensor([[[1, 255]]])
+        objective = SegmentationObjective("ce-dice")
+        parts = objective.components(logits, target)
+        expected = objective(logits[:, :, :, :1], target[:, :, :1])
+        torch.testing.assert_close(parts["total"], expected)
+        self.assertGreater(float(parts["soft_dice"]), 0)
+        parts["total"].backward()
+        self.assertTrue(bool(torch.isfinite(logits.grad).all()))
+        torch.testing.assert_close(logits.grad[:, :, :, 1:], torch.zeros(1, 3, 1, 1))
+
+    def test_ce_dice_background_and_all_ignored_cases(self):
+        logits = torch.randn(1, 3, 2, 2, requires_grad=True)
+        objective = SegmentationObjective("ce-dice")
+        background = torch.zeros(1, 2, 2, dtype=torch.long)
+        parts = objective.components(logits, background)
+        self.assertEqual(float(parts["soft_dice"]), 0)
+        torch.testing.assert_close(parts["total"], torch.nn.functional.cross_entropy(logits, background))
+        ignored = torch.full_like(background, 255)
+        loss = objective(logits, ignored)
+        self.assertEqual(float(loss), 0)
+        loss.backward()
+        torch.testing.assert_close(logits.grad, torch.zeros_like(logits))
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -91,6 +117,24 @@ class PipelineTests(unittest.TestCase):
         directory = main(["smoke", "--model", "unet", "--data-root", str(self.data), "--output-root", str(self.root / "runs"), "--workers", "0", "--device", "cpu"])
         self.assertTrue((directory / "smoke.json").is_file())
         self.assertFalse((directory / "checkpoints").exists())
+
+    @patch("training.run.build_model", side_effect=tiny_model)
+    def test_solar_recipe_preserves_source_loss_and_checkpoint_contract(self, factory):
+        arguments = self.arguments("solar-recipe")
+        arguments[arguments.index("--model") + 1] = "solar-unet"
+        run_dir = main([*arguments, "--variant", "detail", "--loss", "ce-dice"])
+        config = json.loads((run_dir / "config.json").read_text())
+        self.assertEqual(config["architecture_version"], "solar-unet-v1")
+        self.assertEqual(config["loss"], "ce-dice")
+        self.assertTrue((run_dir / "source/models/custom/solar_unet.py").is_file())
+        self.assertTrue((run_dir / "source/training/losses.py").is_file())
+        self.assertTrue((run_dir / "plots/loss_components.png").is_file())
+        checkpoint = torch.load(run_dir / "checkpoints/best.pt", weights_only=False)
+        self.assertEqual(checkpoint["best_val_loss"], checkpoint["history"][-1]["val"]["cross_entropy"])
+        self.assertEqual(checkpoint["history"][-1]["val"]["objective"], "ce-dice")
+        evaluation = main(["evaluate", "--run-dir", str(run_dir), "--workers", "0", "--device", "cpu", "--figures", "0"])
+        report = json.loads((evaluation / "metrics.json").read_text())
+        self.assertEqual(report["objective"], "ce-dice")
 
     def test_legacy_cleanup_preserves_weights(self):
         legacy = self.root / "results/U-Net"
