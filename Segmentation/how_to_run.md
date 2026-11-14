@@ -306,3 +306,35 @@ Use `run("evaluate", "--run-dir", "results/runs/unet/scratch-seed42", "--figures
 after the protocol is frozen. Old per-model Python scripts also delegate to this runner,
 but the module commands above are the preferred workflow. Server tests and full GPU
 training must still be run on your machine; they are not implied by local code checks.
+
+conda activate raj
+cd /home/user/SolarVortex/Segmentation
+
+run_name="comparison-$(date -u +%Y%m%dT%H%M%SZ)"
+
+for model in unet unet-resnet34 unetpp deeplabv3plus segformer-b0 cafunet solar-unet; do
+    printf '\nStarting model: %s\n' "$model"
+
+    python -u -m training.run smoke \
+        --model "$model" --batch-size 2 --device cuda || break
+
+    python -u -m training.run train \
+        --model "$model" --init scratch --loss ce \
+        --epochs 50 --batch-size 4 --seed 42 \
+        --run-name "$run_name" --device cuda || break
+
+    python -u -m training.run evaluate \
+        --run-dir "results/runs/$model/$run_name" \
+        --eval-split val --figures 12 --device cuda || break
+done
+
+
+conda activate raj
+cd /home/user/SolarVortex/Segmentation
+python -m jupyterlab --no-browser --ip=127.0.0.1 --port=8888
+
+python -m pip install jupyterlab
+
+For a remote server, open another terminal on your own computer and connect with port forwarding:
+
+ssh -L 8888:127.0.0.1:8888 your_username@your_server
