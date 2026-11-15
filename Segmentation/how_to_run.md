@@ -343,3 +343,62 @@ python -m pip install jupyterlab
 For a remote server, open another terminal on your own computer and connect with port forwarding:
 
 ssh -L 8888:127.0.0.1:8888 your_username@your_server
+
+
+
+I’ll check the exact files already saved for the validation runs, so I can give you paths and commands that match this checkout.
+
+Ran terminal command: for model in unet unetpp solar-unet; do printf '\n--- %s ---\n' "$model"; find "Segmentation/results/runs/$model/comparison-20261114T182431Z/evaluation" -maxdepth 3 -type f ! -path '*/predictions/*' -print | sort | sed -n '1,35p'; done
+
+Ran terminal command: sed -n '1,220p' Segmentation/evaluation/reporting.py | grep -n -E 'per_image|el10_per_class|qualitative|figures|confusion' | head -80; printf '\n--- existing evaluation command guidance ---\n'; grep -n -E 'Evaluate the Frozen|figures|per_image.csv|per_class.csv|eval-split' Segmentation/how_to_run.md | head -50
+
+Ran terminal command: for model in unet unetpp solar-unet; do p=$(find "Segmentation/results/runs/$model/comparison-20261114T182431Z/evaluation" -path '*/el10_per_class.csv' -print -quit); printf '\n--- %s: %s ---\n' "$model" "$p"; head -4 "$p"; done
+
+Ran terminal command: for model in unet unetpp solar-unet; do d=$(find "Segmentation/results/runs/$model/comparison-20261114T182431Z/evaluation" -mindepth 1 -maxdepth 1 -type d -print -quit); printf '\n--- %s qualitative files ---\n' "$model"; find "$d/qualitative" -maxdepth 1 -type f -print 2>/dev/null | sort | head -5; printf 'count='; find "$d/qualitative" -maxdepth 1 -type f -print 2>/dev/null | wc -l; done
+
+Ran terminal command: p=$(find Segmentation/results/runs/unetpp/comparison-20261114T182431Z/evaluation -name per_image.csv -print -quit); printf '%s\n' "$p"; head -4 "$p"
+
+You **don’t need to retrain** to do the first error analysis. The validation reports already include per-class scores, confusion matrices, and per-image scores. I checked the synced folders; they don’t currently contain qualitative panels, so you can generate those separately.
+
+From the server, in `Segmentation/`, run this to list the weakest defect classes and validation images for the three candidates:
+
+```bash
+python - <<'PY'
+from pathlib import Path
+import pandas as pd
+
+run = "comparison-20261114T182431Z"
+
+for model in ("unetpp", "unet", "solar-unet"):
+    evaluation = next(
+        (Path("results/runs") / model / run / "evaluation").glob("val-*")
+    )
+    print(f"\n=== {model}: lowest-scoring EL-10 defect classes ===")
+    classes = pd.read_csv(evaluation / "el10_per_class.csv")
+    defects = classes[classes["label"].between(4, 9)].sort_values("iou")
+    print(defects[["name", "iou", "precision", "recall", "support_pixels"]]
+          .to_string(index=False))
+
+    print(f"\n=== {model}: 10 lowest-scoring validation images ===")
+    images = pd.read_csv(evaluation / "per_image.csv")
+    print(images.sort_values("defect_macro_iou").head(10).to_string(index=False))
+PY
+```
+
+Interpret the results this way:
+
+- **Low recall** means the model is missing ground-truth defects; **low precision** means it is predicting defects where they aren’t labeled.
+- EL-10 labels **4–9** are the defect groups: crack, inactive, gridline, corrosion, surface anomaly, and edge dark. Check `support_pixels` too—scores for rare classes need more caution.
+- Use the lowest-scoring image names to guide visual inspection. The existing per-class and confusion reports are in the `U-Net++`, `U-Net`, and `SolarUNet` validation folders.
+
+To generate visual panels for all 74 validation images, run on the server that has the actual checkpoints and dataset:
+
+```bash
+for model in unetpp unet solar-unet; do
+  python -m training.run evaluate \
+    --run-dir "results/runs/$model/comparison-20261114T182431Z" \
+    --eval-split val --figures 74 || break
+done
+```
+
+This evaluates the saved best checkpoints; it doesn’t retrain or overwrite the prior reports. Then inspect the newly created `evaluation/val-<timestamp>/qualitative/` panels for the worst-scoring images. Use those recurring failure patterns to decide on a targeted model change. Keep test data out of this iteration; evaluate on test only after you’ve frozen the model and settings.
