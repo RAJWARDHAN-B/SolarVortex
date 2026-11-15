@@ -6,11 +6,10 @@
 __pycache__/
 *.py[cod]
 
-# Segmentation datasets and run artefacts (large / regenerable)
+# Segmentation datasets and generated visual/intermediate artefacts
 Segmentation/data/BenchmarkELimages/
-Segmentation/results/**/*.npz
-Segmentation/results/**/*.png
 Segmentation/checkpoints/
-Segmentation/results/runs/
-Segmentation/results/legacy/
+Segmentation/results/runs/**/plots/
+Segmentation/results/runs/**/predictions/
+Segmentation/results/runs/**/qualitative/
 **/*.pth

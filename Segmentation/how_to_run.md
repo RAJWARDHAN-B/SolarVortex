@@ -199,8 +199,13 @@ PNG graphs are refreshed after every completed epoch. Their underlying values ar
 `history.json`/`history.csv`; per-class heatmaps use the per-class epoch arrays in JSON.
 Evaluation plots have numeric sources in `metrics.json`, including row-normalized
 confusion values. Figures alone are never the only copy of the numbers.
-Generated run/archive directories are Git-ignored: back them up from the server
-separately. Allow several GB across runs for optimizer checkpoints and source snapshots.
+
+Run and archive directories are not ignored wholesale: JSON/CSV reports, audit
+manifests, configuration, and selected checkpoints can be tracked with the code.
+The dataset, generated plots/prediction images/qualitative panels, and `epoch*.pt`
+intermediate checkpoints are Git-ignored. Checkpoints use Git LFS (`*.pt`); install
+Git LFS and fetch LFS objects to use their full model weights. Keep a separate backup
+of large run directories, especially resumable optimizer checkpoints and source snapshots.
 
 ## 8. Resume an Interrupted Run
 

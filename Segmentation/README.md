@@ -323,8 +323,12 @@ The importable original U-Net is in `models/baselines/unet.py`.
 Run artifacts are isolated under `results/runs/<model>/<run-name>/`, including the
 configuration, source snapshot, environment, split, content hashes, epoch JSON/CSV,
 PNG graphs, best/last checkpoints, and timestamped evaluation reports. Generated
-directories are Git-ignored and need separate server backups. Full commands, metric
-policies, resume instructions, and the artifact tree are in [how_to_run.md](how_to_run.md).
+JSON/CSV evidence and selected best/last checkpoints can be tracked with the code;
+the dataset, generated plots/prediction images/qualitative panels, and intermediate
+`epoch*.pt` checkpoints are ignored. Model checkpoints use Git LFS, so install Git LFS
+and fetch its objects to obtain the actual weights. Keep separate backups of large run
+directories. Full commands, metric policies, resume instructions, and the artifact
+tree are in [how_to_run.md](how_to_run.md).
 
 Default loss remains CE. Opt into `--loss ce-dice` for a separately recorded
 CE-plus-foreground-Dice experiment on any model. Checkpoint selection still uses

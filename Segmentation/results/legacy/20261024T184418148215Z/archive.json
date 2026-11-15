@@ -1,0 +1,6 @@
+{
+  "reason": "Legacy runs predate shared evaluation; retain weights and evidence, do not compare as protocol-v1 runs",
+  "artifacts": [
+    "class_stats.npz"
+  ]
+}
