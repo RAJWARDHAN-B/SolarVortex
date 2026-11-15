@@ -1,0 +1,446 @@
+[
+  {
+    "image": "ARTS_00005_r10_c4.png",
+    "macro_iou": 0.47079809772717107,
+    "macro_dice": 0.532348705154515,
+    "defect_macro_iou": 0.10101010101010101
+  },
+  {
+    "image": "ARTS_00005_r3_c5.png",
+    "macro_iou": 0.41831743046584324,
+    "macro_dice": 0.48522595034466276,
+    "defect_macro_iou": 0.060283687943262415
+  },
+  {
+    "image": "ARTS_00005_r4_c5.png",
+    "macro_iou": 0.40857509328952935,
+    "macro_dice": 0.46428501130055766,
+    "defect_macro_iou": 0.02983425414364641
+  },
+  {
+    "image": "ARTS_00005_r5_c4.png",
+    "macro_iou": 0.4266491054354477,
+    "macro_dice": 0.4740602470379478,
+    "defect_macro_iou": 0.023272780331217626
+  },
+  {
+    "image": "ARTS_00031_r2_c6.png",
+    "macro_iou": 0.6401103768862215,
+    "macro_dice": 0.6968377594000855,
+    "defect_macro_iou": 0.14377682403433475
+  },
+  {
+    "image": "ARTS_00056_r4_c4.png",
+    "macro_iou": 0.477232145380205,
+    "macro_dice": 0.5271726880274198,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "ARTS_00072_r6_c1.png",
+    "macro_iou": 0.820958704779331,
+    "macro_dice": 0.8923272189306933,
+    "defect_macro_iou": null
+  },
+  {
+    "image": "ARTS_00072_r6_c6.png",
+    "macro_iou": 0.649436162692,
+    "macro_dice": 0.7475919192837911,
+    "defect_macro_iou": 0.14213197969543148
+  },
+  {
+    "image": "ARTS_00089_r4_c3.png",
+    "macro_iou": 0.48444659935577994,
+    "macro_dice": 0.5470615098621691,
+    "defect_macro_iou": 0.03187042842215256
+  },
+  {
+    "image": "ARTS_00096_r6_c6.png",
+    "macro_iou": 0.5707753773328186,
+    "macro_dice": 0.654506286742672,
+    "defect_macro_iou": 0.1349009900990099
+  },
+  {
+    "image": "ARTS_00097_r4_c5.png",
+    "macro_iou": 0.41033548938239184,
+    "macro_dice": 0.45838899211492673,
+    "defect_macro_iou": 0.015889464594127805
+  },
+  {
+    "image": "ARTS_00110_r5_c2.png",
+    "macro_iou": 0.6464960399688774,
+    "macro_dice": 0.73325673675651,
+    "defect_macro_iou": 0.1537242472266244
+  },
+  {
+    "image": "ARTS_00146_r8_c6.png",
+    "macro_iou": 0.7436275596097411,
+    "macro_dice": 0.8125458035626938,
+    "defect_macro_iou": 0.16629068643248468
+  },
+  {
+    "image": "ARTS_00149_r10_c1.png",
+    "macro_iou": 0.6637299444241336,
+    "macro_dice": 0.7388761052143186,
+    "defect_macro_iou": 0.03616636528028933
+  },
+  {
+    "image": "ARTS_00152_r12_c5.png",
+    "macro_iou": 0.6390097391309367,
+    "macro_dice": 0.6788723063115668,
+    "defect_macro_iou": 0.018553986114436198
+  },
+  {
+    "image": "ARTS_00152_r8_c5.png",
+    "macro_iou": 0.5356832452680904,
+    "macro_dice": 0.6092605708061994,
+    "defect_macro_iou": 0.11136814276272307
+  },
+  {
+    "image": "ARTS_00152_r9_c3.png",
+    "macro_iou": 0.43678254664014066,
+    "macro_dice": 0.501892986909203,
+    "defect_macro_iou": 0.0757086472909939
+  },
+  {
+    "image": "ARTS_00152_r9_c5.png",
+    "macro_iou": 0.5375496794841105,
+    "macro_dice": 0.617335104437919,
+    "defect_macro_iou": 0.13501945525291828
+  },
+  {
+    "image": "ARTS_00152_r9_c6.png",
+    "macro_iou": 0.6695086133179563,
+    "macro_dice": 0.7178648845085726,
+    "defect_macro_iou": 0.08803142329020333
+  },
+  {
+    "image": "ARTS_00157_r12_c2.png",
+    "macro_iou": 0.7667928842420677,
+    "macro_dice": 0.8187894494858924,
+    "defect_macro_iou": 0.10736975857687421
+  },
+  {
+    "image": "ARTS_00157_r2_c1.png",
+    "macro_iou": 0.5808344876311529,
+    "macro_dice": 0.6236830441246088,
+    "defect_macro_iou": 0.054898093359631826
+  },
+  {
+    "image": "ARTS_00157_r3_c2.png",
+    "macro_iou": 0.5385414530189104,
+    "macro_dice": 0.6131165446469296,
+    "defect_macro_iou": 0.11652542372881355
+  },
+  {
+    "image": "ARTS_00167_r1_c4.png",
+    "macro_iou": 0.6310231379708687,
+    "macro_dice": 0.7028596603784989,
+    "defect_macro_iou": 0.2938230383973289
+  },
+  {
+    "image": "BMRK_00574_cell0634.png",
+    "macro_iou": 0.4316241422439971,
+    "macro_dice": 0.49111065643466145,
+    "defect_macro_iou": 0.06680346557227543
+  },
+  {
+    "image": "BMRK_00912_cell1746.png",
+    "macro_iou": 0.4069755029678206,
+    "macro_dice": 0.46139569827149945,
+    "defect_macro_iou": 0.10996020002041025
+  },
+  {
+    "image": "BMRK_01096_cell1930.png",
+    "macro_iou": 0.4346226649224991,
+    "macro_dice": 0.4789007315638069,
+    "defect_macro_iou": 0.10363687359760658
+  },
+  {
+    "image": "BMRK_01250_cell2084.png",
+    "macro_iou": 0.4894165337206646,
+    "macro_dice": 0.5443440062239829,
+    "defect_macro_iou": 0.16750252865812543
+  },
+  {
+    "image": "BMRK_01515_cell2169.png",
+    "macro_iou": 0.27666412983199556,
+    "macro_dice": 0.30689609124922235,
+    "defect_macro_iou": 0.02727272727272727
+  },
+  {
+    "image": "CFVS_00009_r7_c4.png",
+    "macro_iou": 0.5513685493401556,
+    "macro_dice": 0.6132087213187905,
+    "defect_macro_iou": 0.08630241665870665
+  },
+  {
+    "image": "CFVS_00021_r3_c1.png",
+    "macro_iou": 0.6759263207133874,
+    "macro_dice": 0.7499752973138508,
+    "defect_macro_iou": 0.1410027944131858
+  },
+  {
+    "image": "CFVS_00021_r5_c2.png",
+    "macro_iou": 0.5305540150430571,
+    "macro_dice": 0.6444541150092292,
+    "defect_macro_iou": 0.24510173372285302
+  },
+  {
+    "image": "CFVS_00046_r8_c4.png",
+    "macro_iou": 0.43290986841498647,
+    "macro_dice": 0.5370932740775276,
+    "defect_macro_iou": 0.24594199407200057
+  },
+  {
+    "image": "CFVS_00093_r10_c4.png",
+    "macro_iou": 0.3602648869374308,
+    "macro_dice": 0.39084216401127214,
+    "defect_macro_iou": 0.0010940919037199124
+  },
+  {
+    "image": "CFVS_00101_r5_c1.png",
+    "macro_iou": 0.7006435157440227,
+    "macro_dice": 0.7827982147348215,
+    "defect_macro_iou": 0.2791372243823116
+  },
+  {
+    "image": "CFVS_00128_r11_c4.png",
+    "macro_iou": 0.619049581312252,
+    "macro_dice": 0.7334097023808327,
+    "defect_macro_iou": 0.4118015505451156
+  },
+  {
+    "image": "CFVS_00128_r1_c2.png",
+    "macro_iou": 0.48936703244453533,
+    "macro_dice": 0.5735537666756875,
+    "defect_macro_iou": 0.17280677766929153
+  },
+  {
+    "image": "CFVS_00132_r1_c2.png",
+    "macro_iou": 0.5552187872571309,
+    "macro_dice": 0.6204939795064134,
+    "defect_macro_iou": 0.047553275453827946
+  },
+  {
+    "image": "CFVS_00132_r7_c4.png",
+    "macro_iou": 0.3354135773000021,
+    "macro_dice": 0.42371989227472745,
+    "defect_macro_iou": 0.10536686145219712
+  },
+  {
+    "image": "CFVS_00156_r5_c6.png",
+    "macro_iou": 0.5617065346933996,
+    "macro_dice": 0.6174858843584299,
+    "defect_macro_iou": 0.30665034028161836
+  },
+  {
+    "image": "CFVS_00159_r10_c6.png",
+    "macro_iou": 0.7707313495570917,
+    "macro_dice": 0.8630267694121948,
+    "defect_macro_iou": null
+  },
+  {
+    "image": "CFVS_00159_r2_c1.png",
+    "macro_iou": 0.8231288378432394,
+    "macro_dice": 0.8983597666767024,
+    "defect_macro_iou": null
+  },
+  {
+    "image": "CFVS_00159_r6_c2.png",
+    "macro_iou": 0.6206952342721339,
+    "macro_dice": 0.6767608553743656,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CFVS_00159_r8_c3.png",
+    "macro_iou": 0.5284775346497856,
+    "macro_dice": 0.5955200353052964,
+    "defect_macro_iou": 0.07682619647355164
+  },
+  {
+    "image": "CSIR_00062_r5_c4.png",
+    "macro_iou": 0.12582924461907952,
+    "macro_dice": 0.13748634491944872,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00062_r9_c6.png",
+    "macro_iou": 0.13514185170597104,
+    "macro_dice": 0.15729209461829524,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00066_r11_c2.png",
+    "macro_iou": 0.15539377060620455,
+    "macro_dice": 0.1669697363480009,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00067_r11_c1.png",
+    "macro_iou": 0.167238254039773,
+    "macro_dice": 0.18976782596246772,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00067_r1_c5.png",
+    "macro_iou": 0.16951712816585593,
+    "macro_dice": 0.17574912792462327,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00067_r3_c2.png",
+    "macro_iou": 0.11259232602564444,
+    "macro_dice": 0.12457083747087763,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00092_r11_c5.png",
+    "macro_iou": 0.3154453650626984,
+    "macro_dice": 0.3762304960971338,
+    "defect_macro_iou": 0.025340475364330324
+  },
+  {
+    "image": "CSIR_00092_r12_c5.png",
+    "macro_iou": 0.23072859167170837,
+    "macro_dice": 0.29249746288620915,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00092_r3_c2.png",
+    "macro_iou": 0.47817277541903774,
+    "macro_dice": 0.5477577131417928,
+    "defect_macro_iou": 0.14289259596867146
+  },
+  {
+    "image": "CSIR_00092_r8_c4.png",
+    "macro_iou": 0.3605588730305032,
+    "macro_dice": 0.4252352452943136,
+    "defect_macro_iou": 0.06064296574887022
+  },
+  {
+    "image": "CSIR_00094_r12_c8.png",
+    "macro_iou": 0.2288962954689235,
+    "macro_dice": 0.2527594843908366,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00094_r16_c5.png",
+    "macro_iou": 0.128254821657119,
+    "macro_dice": 0.14100383676304748,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00094_r8_c6.png",
+    "macro_iou": 0.22538126467481231,
+    "macro_dice": 0.2386911883205784,
+    "defect_macro_iou": 0.006320224719101123
+  },
+  {
+    "image": "CSIR_00106_r6_c1.png",
+    "macro_iou": 0.5648895089047634,
+    "macro_dice": 0.6318387253111589,
+    "defect_macro_iou": 0.18246445497630331
+  },
+  {
+    "image": "CSIR_00127_r11_c5.png",
+    "macro_iou": 0.4571612044555186,
+    "macro_dice": 0.514415592290696,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00225_r12_c6.png",
+    "macro_iou": 0.644137625542437,
+    "macro_dice": 0.7187144679894707,
+    "defect_macro_iou": 0.7163226562184433
+  },
+  {
+    "image": "CSIR_00225_r9_c4.png",
+    "macro_iou": 0.6819550165062418,
+    "macro_dice": 0.8010609608522249,
+    "defect_macro_iou": 0.5395731998762898
+  },
+  {
+    "image": "CSIR_00233_r12_c5.png",
+    "macro_iou": 0.6221759622319413,
+    "macro_dice": 0.7102214684183066,
+    "defect_macro_iou": 0.5678009293958927
+  },
+  {
+    "image": "CSIR_00233_r5_c2.png",
+    "macro_iou": 0.6016158313664441,
+    "macro_dice": 0.6807631451525146,
+    "defect_macro_iou": 0.40223935182580317
+  },
+  {
+    "image": "CSIR_00299_r21_c3.png",
+    "macro_iou": 0.2627044728047568,
+    "macro_dice": 0.30190240538680635,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_00399_r1_c3.png",
+    "macro_iou": 0.5155686735608755,
+    "macro_dice": 0.6058629648671967,
+    "defect_macro_iou": 0.20049097386462295
+  },
+  {
+    "image": "CSIR_00399_r7_c3.png",
+    "macro_iou": 0.7423001437028477,
+    "macro_dice": 0.8478553726609196,
+    "defect_macro_iou": 0.6268977279905666
+  },
+  {
+    "image": "CSIR_00400_r6_c2.png",
+    "macro_iou": 0.36041190773897164,
+    "macro_dice": 0.41479602114542025,
+    "defect_macro_iou": 0.09666085948619249
+  },
+  {
+    "image": "CSIR_01100_r3_c4.png",
+    "macro_iou": 0.6594081647841264,
+    "macro_dice": 0.7569947618909898,
+    "defect_macro_iou": 0.4775191639210593
+  },
+  {
+    "image": "CSIR_01102_r10_c2.png",
+    "macro_iou": 0.5383500044794033,
+    "macro_dice": 0.6251281740347879,
+    "defect_macro_iou": 0.2391821470694974
+  },
+  {
+    "image": "CSIR_01102_r11_c2.png",
+    "macro_iou": 0.4054723155990511,
+    "macro_dice": 0.47888762761682285,
+    "defect_macro_iou": 0.17089295999068851
+  },
+  {
+    "image": "CSIR_01102_r6_c4.png",
+    "macro_iou": 0.6209942479517248,
+    "macro_dice": 0.7291924420696667,
+    "defect_macro_iou": 0.3335451104670865
+  },
+  {
+    "image": "CSIR_01680_r1_c1.png",
+    "macro_iou": 0.5604334601302108,
+    "macro_dice": 0.6180532997608762,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "CSIR_02237_r24_c1.png",
+    "macro_iou": 0.7137515141364446,
+    "macro_dice": 0.7831553481402486,
+    "defect_macro_iou": 0.7661233167965982
+  },
+  {
+    "image": "CSIR_02319_r4_c5.png",
+    "macro_iou": 0.44693967114271527,
+    "macro_dice": 0.4709301260291162,
+    "defect_macro_iou": 0.0
+  },
+  {
+    "image": "SDLE_00218_A1-DH3000-3000h-PT-cell47.png",
+    "macro_iou": 0.7036705126616927,
+    "macro_dice": 0.7767001476747691,
+    "defect_macro_iou": 0.6871754747848353
+  }
+]

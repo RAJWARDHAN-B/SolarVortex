@@ -402,3 +402,99 @@ done
 ```
 
 This evaluates the saved best checkpoints; it doesn’t retrain or overwrite the prior reports. Then inspect the newly created `evaluation/val-<timestamp>/qualitative/` panels for the worst-scoring images. Use those recurring failure patterns to decide on a targeted model change. Keep test data out of this iteration; evaluate on test only after you’ve frozen the model and settings.
+
+(base) user@giant:~/SolarVortex/Segmentation$ python - <<'PY'
+from pathlib import Path
+import pandas as pd
+
+run = "comparison-20261114T182431Z"
+
+for model in ("unetpp", "unet", "solar-unet"):
+    evaluation = next(
+        (Path("results/runs") / model / run / "evaluation").glob("val-*")
+    )
+    print(f"\n=== {model}: lowest-scoring EL-10 defect classes ===")
+    classes = pd.read_csv(evaluation / "el10_per_class.csv")
+    defects = classes[classes["label"].between(4, 9)].sort_values("iou")
+    print(defects[["name", "iou", "precision", "recall", "support_pixels"]]
+          .to_string(index=False))
+
+    print(f"\n=== {model}: 10 lowest-scoring validation images ===")
+    images = pd.read_csv(evaluation / "per_image.csv")
+    print(images.sort_values("defect_macro_iou").head(10).to_string(index=False))
+PY
+
+=== unetpp: lowest-scoring EL-10 defect classes ===
+           name      iou  precision   recall  support_pixels
+          crack 0.180427   0.387183 0.252548           28252
+       gridline 0.291166   0.592605 0.364033           94126
+       inactive 0.379033   0.694469 0.454887           34558
+surface_anomaly 0.407670   0.649318 0.522770          203803
+      corrosion 0.450419   0.552270 0.709498          105545
+      edge_dark 0.646688   0.701652 0.891956          134649
+
+=== unetpp: 10 lowest-scoring validation images ===
+                  image  macro_iou  macro_dice  defect_macro_iou
+BMRK_01515_cell2169.png   0.214060    0.231434               0.0
+  CSIR_00299_r21_c3.png   0.444113    0.506745               0.0
+  CSIR_00067_r11_c1.png   0.151615    0.166239               0.0
+  CSIR_00066_r11_c2.png   0.146518    0.155632               0.0
+   CSIR_00062_r9_c6.png   0.125350    0.137594               0.0
+   CSIR_01680_r1_c1.png   0.621358    0.685285               0.0
+   CSIR_02319_r4_c5.png   0.511605    0.538589               0.0
+  CSIR_00094_r16_c5.png   0.110948    0.126670               0.0
+  CSIR_00092_r12_c5.png   0.263033    0.333676               0.0
+   CSIR_00067_r3_c2.png   0.103991    0.115430               0.0
+
+=== unet: lowest-scoring EL-10 defect classes ===
+           name      iou  precision   recall  support_pixels
+          crack 0.227022   0.443341 0.317535           28252
+       inactive 0.230263   0.355728 0.394988           34558
+       gridline 0.312642   0.541613 0.425132           94126
+surface_anomaly 0.414843   0.708170 0.500385          203803
+      corrosion 0.554681   0.707884 0.719333          105545
+      edge_dark 0.575008   0.793027 0.676537          134649
+
+=== unet: 10 lowest-scoring validation images ===
+                  image  macro_iou  macro_dice  defect_macro_iou
+   CSIR_02319_r4_c5.png   0.592268    0.625733               0.0
+  CSIR_00092_r12_c5.png   0.274089    0.342324               0.0
+   CSIR_00067_r3_c2.png   0.084621    0.094911               0.0
+  CSIR_00299_r21_c3.png   0.431269    0.497929               0.0
+  CSIR_00067_r11_c1.png   0.164593    0.188426               0.0
+   CSIR_00062_r5_c4.png   0.117431    0.121713               0.0
+BMRK_01515_cell2169.png   0.196179    0.209062               0.0
+  CSIR_00094_r16_c5.png   0.103483    0.117480               0.0
+   CSIR_00062_r9_c6.png   0.085793    0.091617               0.0
+   CFVS_00159_r6_c2.png   0.650310    0.695345               0.0
+
+=== solar-unet: lowest-scoring EL-10 defect classes ===
+           name      iou  precision   recall  support_pixels
+          crack 0.080127   0.437283 0.089339           28252
+       inactive 0.150972   0.583649 0.169194           34558
+       gridline 0.165131   0.641944 0.181884           94126
+surface_anomaly 0.373909   0.707244 0.442378          203803
+      corrosion 0.460566   0.589632 0.677844          105545
+      edge_dark 0.621095   0.781983 0.751168          134649
+
+=== solar-unet: 10 lowest-scoring validation images ===
+                image  macro_iou  macro_dice  defect_macro_iou
+ CSIR_02319_r4_c5.png   0.446940    0.470930               0.0
+ CSIR_00067_r3_c2.png   0.112592    0.124571               0.0
+CSIR_00094_r16_c5.png   0.128255    0.141004               0.0
+CSIR_00094_r12_c8.png   0.228896    0.252759               0.0
+ CFVS_00159_r6_c2.png   0.620695    0.676761               0.0
+CSIR_00092_r12_c5.png   0.230729    0.292497               0.0
+CSIR_00299_r21_c3.png   0.262704    0.301902               0.0
+CSIR_00127_r11_c5.png   0.457161    0.514416               0.0
+CSIR_00067_r11_c1.png   0.167238    0.189768               0.0
+ CSIR_01680_r1_c1.png   0.560433    0.618053               0.0
+
+(raj) user@giant:~/SolarVortex/Segmentation$ for model in unetpp unet solar-unet; do   python -m training.run evaluate     --run-dir "results/runs/$model/comparison-20261114T182431Z"     --eval-split val --figures 74 || break; done
+val: EL-29 mIoU=0.38204498122584063 Dice=0.46684865370036416
+Saved report: /home/user/SolarVortex/Segmentation/results/runs/unetpp/comparison-20261114T182431Z/evaluation/val-20261115T191628087319Z
+val: EL-29 mIoU=0.3715051386126909 Dice=0.45365791354559304
+Saved report: /home/user/SolarVortex/Segmentation/results/runs/unet/comparison-20261114T182431Z/evaluation/val-20261115T191714104189Z
+val: EL-29 mIoU=0.3944112291868698 Dice=0.48860590157949574
+Saved report: /home/user/SolarVortex/Segmentation/results/runs/solar-unet/comparison-20261114T182431Z/evaluation/val-20261115T191803586725Z
+(raj) user@giant:~/SolarVortex/Segmentation$ 
