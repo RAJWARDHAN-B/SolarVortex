@@ -201,11 +201,11 @@ Evaluation plots have numeric sources in `metrics.json`, including row-normalize
 confusion values. Figures alone are never the only copy of the numbers.
 
 Run and archive directories are not ignored wholesale: JSON/CSV reports, audit
-manifests, configuration, and selected checkpoints can be tracked with the code.
-The dataset, generated plots/prediction images/qualitative panels, and `epoch*.pt`
-intermediate checkpoints are Git-ignored. Checkpoints use Git LFS (`*.pt`); install
-Git LFS and fetch LFS objects to use their full model weights. Keep a separate backup
-of large run directories, especially resumable optimizer checkpoints and source snapshots.
+manifests, configuration, plots, prediction masks, qualitative panels, and selected
+checkpoints can be tracked with the code. The dataset and `epoch*.pt` intermediate
+checkpoints are Git-ignored. Checkpoints use Git LFS (`*.pt`); install Git LFS and
+fetch LFS objects to use their full model weights. Keep a separate backup of large run
+directories, especially resumable optimizer checkpoints and source snapshots.
 
 ## 8. Resume an Interrupted Run
 
