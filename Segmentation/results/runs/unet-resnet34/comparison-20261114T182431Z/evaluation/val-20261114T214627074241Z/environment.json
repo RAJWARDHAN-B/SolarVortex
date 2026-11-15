@@ -1,0 +1,32 @@
+{
+  "python": "3.12.13 | packaged by Anaconda, Inc. | (main, Mar 19 2026, 20:20:58) [GCC 14.3.0]",
+  "executable": "/home/user/anaconda3/envs/raj/bin/python",
+  "platform": "Linux-6.17.0-40-generic-x86_64-with-glibc2.39",
+  "packages": {
+    "torch": "2.12.0",
+    "torchvision": "0.27.0",
+    "numpy": "2.4.6",
+    "pillow": "12.2.0",
+    "matplotlib": "3.10.9",
+    "segmentation-models-pytorch": "0.5.0",
+    "timm": "1.0.22",
+    "transformers": "4.46.3"
+  },
+  "device": "cuda",
+  "cuda_runtime": "13.0",
+  "gpu": "NVIDIA RTX PRO 4500 Blackwell",
+  "command": [
+    "/home/user/SolarVortex/Segmentation/training/run.py",
+    "evaluate",
+    "--run-dir",
+    "results/runs/unet-resnet34/comparison-20261114T182431Z",
+    "--eval-split",
+    "val",
+    "--figures",
+    "12",
+    "--device",
+    "cuda"
+  ],
+  "created_utc": "20261114T214635528729Z",
+  "reproducibility": "Seeded Python, NumPy, PyTorch and workers; cuDNN deterministic enabled. Bitwise equality across hardware/software versions is not guaranteed."
+}
