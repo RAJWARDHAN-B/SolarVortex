@@ -10,6 +10,7 @@ import json
 import posixpath
 import re
 import zipfile
+from collections import Counter
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -152,7 +153,7 @@ def table(s, headers, rows, x, y, widths, row_h=0.51, size=17, highlight=()):
         t.rows[r].height = Inches(row_h)
         for c, value in enumerate(values):
             cell = t.cell(r, c)
-            cell.text = str(value)
+            cell.text = str(value).replace(" +/- ", " \u00b1 ")
             cell.margin_left = cell.margin_right = Inches(0.08)
             cell.margin_top = cell.margin_bottom = Inches(0.04)
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
@@ -271,7 +272,7 @@ fully solve that input-to-decision problem.""",
     ], 0.65, 2.05, [3.32, 5.90], row_h=0.72, size=20)
     callout(s, "5-10%", "Skip rate reported\nfor batch extractor pp4",
             10.03, 2.08, 2.55, 1.72)
-    callout(s, "Count instability", "208 versus 182 cells\nin nominally similar modules",
+    callout(s, "Cell counts", "208 versus 182 cells\nin nominally similar modules",
             10.03, 4.10, 2.55, 1.72)
     notes(s, """The paper reviews eleven cell-extraction explorations and four
 full-module explorations. Four recurring weaknesses are threshold brittleness,
@@ -506,7 +507,7 @@ only to DenseNet and ConvNeXt. Transition to exact localization results.""",
 
     s = slide("Localization saturates at the smallest model scale", "Results / Stage 1",
               "Source: v9 Stage 1 results table | 161-image test set")
-    table(s, ["Model", "Params", "FPS", "mAP@.5", "mAP@.5:.95"],
+    table(s, ["Model", "Size", "FPS", "mAP\n@0.5", "mAP\n@0.5:0.95"],
           STAGE1, 0.65, 2.14, [2.32, 1.02, 0.84, 1.20, 1.52],
           row_h=0.66, size=19, highlight=(0, 2))
     callout(s, "222 FPS", "Nano: 3.1M parameters; about 4.5 ms/image",
@@ -538,8 +539,8 @@ test evaluation. Next, examine corrected classification results.""",
     for row in STAGE2:
         shown.append([row[0], row[2], row[3], row[4], row[8]])
     table(s, ["Model", "Accuracy", "B-F1", "B-recall", "Seeds"], shown,
-          0.65, 2.13, [2.00, 1.64, 1.64, 1.64, 0.68], row_h=0.48,
-          size=15, highlight=(0,))
+          0.65, 2.13, [2.00, 1.56, 1.56, 1.56, 0.92], row_h=0.48,
+          size=17, highlight=(0,))
     text(s, "+/- denotes standard deviation over three seeds, not confidence intervals.",
          0.69, 6.18, 7.49, 0.43, 14, MUTED)
     picture(s, "fig_stage2_roc.png", 8.56, 2.07, 4.10, 3.59)
@@ -779,12 +780,44 @@ def validate(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "presentation.pptx")
+    parser.add_argument("--rendered-pdf", type=Path,
+                        help="Validate a local office-rendered PDF of the saved deck.")
     args = parser.parse_args()
     build()
     prs.save(args.output)
     report = validate(args.output)
+    if args.rendered_pdf:
+        report["office_render"] = validate_rendered_pdf(args.output, args.rendered_pdf)
     print(json.dumps(report, indent=2))
     print(f"Saved {args.output} ({args.output.stat().st_size:,} bytes)")
+
+
+def validate_rendered_pdf(pptx_path, pdf_path):
+    import fitz
+
+    deck = Presentation(pptx_path)
+    with fitz.open(pdf_path) as doc:
+        assert len(doc) == len(deck.slides) == 16
+        for i, (page, s) in enumerate(zip(doc, deck.slides), 1):
+            expected = []
+            for shape in s.shapes:
+                if shape.has_text_frame:
+                    expected.append(shape.text)
+                if shape.has_table:
+                    expected.extend(c.text for row in shape.table.rows for c in row.cells)
+            token_pattern = r"[A-Za-z0-9]+"
+            wanted = Counter(re.findall(token_pattern, " ".join(expected).lower()))
+            visible = Counter(re.findall(token_pattern, page.get_text().lower()))
+            assert not wanted - visible, (i, "missing rendered text", wanted - visible)
+            spans = [span for block in page.get_text("dict")["blocks"]
+                     if block["type"] == 0 for line in block["lines"]
+                     for span in line["spans"] if span["text"].strip()]
+            for j, a in enumerate(spans):
+                for b in spans[j + 1:]:
+                    overlap = fitz.Rect(a["bbox"]) & fitz.Rect(b["bbox"])
+                    assert overlap.width <= 1 or overlap.height <= 1, (
+                        i, "rendered text collision", a["text"], b["text"])
+    return "16 pages; complete visible text; zero rendered text collisions"
 
 
 if __name__ == "__main__":
